@@ -58,3 +58,6 @@ yarn-error.log
 # Misc
 *.log
 *.tmp
+
+# Removed from repo (was nested git project)
+Interview/
