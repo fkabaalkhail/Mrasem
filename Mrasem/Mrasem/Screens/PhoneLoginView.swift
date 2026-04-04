@@ -6,123 +6,125 @@ struct PhoneLoginView: View {
     @State private var phoneNumber: String = ""
     @State private var rememberMe: Bool = false
     
+    private let brandBrown = Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0)
+    private let textGreen = Color(red: 0x21 / 255.0, green: 0x3C / 255.0, blue: 0x2E / 255.0)
+
     var body: some View {
         ZStack {
-            Color.white
-                .ignoresSafeArea()
-            
+            brandBrown.ignoresSafeArea()
+
             VStack(spacing: 0) {
+                // Title on brown background
                 Text(languageManager.current == .arabic ? "تسجيل الدخول" : "Login")
                     .font(.custom("ExpoArabic-Medium", size: 20))
                     .fontWeight(.medium)
-                    .foregroundColor(.black)
+                    .foregroundColor(.white)
                     .padding(.top, 70)
-                
+
+                // White sheet
                 ZStack(alignment: .top) {
-                    Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0)
+                    Color.white
                         .clipShape(RoundedCorner(radius: 50, corners: [.topLeft, .topRight]))
-                    
+
                     VStack(spacing: 0) {
                         PhoneIcon()
                             .frame(width: 94, height: 166)
                             .padding(.top, 45)
-                        
+
                         Text(languageManager.current == .arabic ? "أدخل رقم جوالك" : "Enter your Mobile Number")
                             .font(.custom("ExpoArabic-Medium", size: 16))
                             .fontWeight(.medium)
-                            .foregroundColor(.white)
+                            .foregroundColor(brandBrown)
                             .multilineTextAlignment(.center)
                             .frame(width: 297)
                             .padding(.top, 33)
-                        
+
                         VStack(alignment: .leading, spacing: 0) {
                             Text(languageManager.current == .arabic ? "رقم الجوال" : "Phone Number")
                                 .font(.custom("ExpoArabic-Medium", size: 14))
                                 .fontWeight(.medium)
-                                .foregroundColor(.white)
+                                .foregroundColor(brandBrown)
                                 .padding(.bottom, 13)
                                 .frame(maxWidth: .infinity, alignment: languageManager.current == .arabic ? .trailing : .leading)
-                            
+
                             HStack(spacing: 12) {
                                 TextField("", text: $countryCode)
                                     .font(.custom("ExpoArabic-Medium", size: 14))
                                     .fontWeight(.medium)
-                                    .foregroundColor(Color(red: 0x6A / 255.0, green: 0x6A / 255.0, blue: 0x6A / 255.0))
+                                    .foregroundColor(brandBrown)
                                     .frame(width: 48, height: 48)
                                     .background(Color.white)
+                                    .overlay(RoundedRectangle(cornerRadius: 7).stroke(brandBrown, lineWidth: 1))
                                     .cornerRadius(7)
                                     .multilineTextAlignment(.center)
-                                
+
                                 TextField("", text: $phoneNumber)
                                     .font(.custom("ExpoArabic-Medium", size: 14))
                                     .fontWeight(.medium)
-                                    .foregroundColor(.black)
+                                    .foregroundColor(textGreen)
                                     .frame(height: 48)
                                     .padding(.horizontal, 10)
                                     .background(Color.white)
+                                    .overlay(RoundedRectangle(cornerRadius: 7).stroke(brandBrown, lineWidth: 1))
                                     .cornerRadius(7)
                                     .keyboardType(.numberPad)
                             }
                             .frame(maxWidth: .infinity, alignment: languageManager.current == .arabic ? .trailing : .leading)
                         }
-                        // Fixed content width like Figma, then align within full width
                         .frame(width: 287, alignment: languageManager.current == .arabic ? .trailing : .leading)
                         .frame(maxWidth: .infinity, alignment: languageManager.current == .arabic ? .trailing : .leading)
                         .padding(.horizontal, 44)
                         .padding(.top, 86)
-                        
+
                         HStack(spacing: 6) {
-                            Button(action: {
-                                rememberMe.toggle()
-                            }) {
+                            Button(action: { rememberMe.toggle() }) {
                                 ZStack {
                                     RoundedRectangle(cornerRadius: 5)
-                                        .stroke(Color.white, lineWidth: 1)
+                                        .stroke(brandBrown, lineWidth: 1)
                                         .frame(width: 18, height: 18)
-                                    
                                     if rememberMe {
                                         Image(systemName: "checkmark")
                                             .font(.system(size: 12, weight: .bold))
-                                            .foregroundColor(.white)
+                                            .foregroundColor(brandBrown)
                                     }
                                 }
                             }
-                            
                             Text(languageManager.current == .arabic ? "تذكرني" : "Remember Me")
                                 .font(.custom("ExpoArabic-Medium", size: 12))
                                 .fontWeight(.medium)
-                                .foregroundColor(.white)
+                                .foregroundColor(textGreen)
                         }
                         .frame(maxWidth: .infinity, alignment: languageManager.current == .arabic ? .trailing : .leading)
                         .padding(.horizontal, 44)
                         .padding(.top, 16)
-                        
+
+                        // Member Login — brown bg, white text
                         NavigationLink(destination: MembershipLoginView().environmentObject(languageManager)) {
                             Text(languageManager.current == .arabic ? "تسجيل الدخول للأعضاء" : "Member Login")
                                 .font(.custom("ExpoArabic-Medium", size: 16))
                                 .fontWeight(.medium)
-                                .foregroundColor(.black)
+                                .foregroundColor(.white)
                                 .frame(width: 287, height: 56)
-                                .background(Color.white)
+                                .background(brandBrown)
                                 .cornerRadius(13)
                         }
                         .padding(.top, 106)
-                        
+
+                        // Next + FaceID — brown bg, white text
                         HStack(spacing: 18) {
-                            NavigationLink(destination: CategorySelectionView().environmentObject(languageManager)) {
+                            NavigationLink(destination: OTPVerificationView(phoneNumber: phoneNumber).environmentObject(languageManager)) {
                                 Text(languageManager.current == .arabic ? "التالي" : "Next")
                                     .font(.custom("ExpoArabic-Medium", size: 16))
                                     .fontWeight(.medium)
-                                    .foregroundColor(.black)
+                                    .foregroundColor(.white)
                                     .frame(width: 205, height: 56)
-                                    .background(Color.white)
+                                    .background(brandBrown)
                                     .cornerRadius(13)
                             }
 
                             Button(action: {}) {
                                 ZStack {
                                     Color.white
-
                                     FaceIDIcon()
                                         .frame(width: 39, height: 39)
                                 }
@@ -131,7 +133,7 @@ struct PhoneLoginView: View {
                             }
                         }
                         .padding(.top, 15)
-                        
+
                         Spacer()
                     }
                 }
@@ -174,7 +176,7 @@ struct PhoneIcon: View {
                 path.addLine(to: CGPoint(x: 88.5333, y: 152.167))
                 path.closeSubpath()
             }
-            .fill(Color.white)
+            .fill(Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0))
             
             Path { path in
                 path.move(to: CGPoint(x: 60.8667, y: 149.4))
@@ -186,7 +188,7 @@ struct PhoneIcon: View {
                 path.addCurve(to: CGPoint(x: 60.8667, y: 149.4), control1: CGPoint(x: 63.6334, y: 150.645), control2: CGPoint(x: 62.3883, y: 149.4))
                 path.closeSubpath()
             }
-            .fill(Color.white)
+            .fill(Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0))
         }
     }
 }

@@ -4,32 +4,52 @@ struct OnboardingView2: View {
     var onSkip: (() -> Void)? = nil
     var onNext: (() -> Void)? = nil
     @EnvironmentObject private var languageManager: LanguageManager
+
+    private var languageToggleTitle: String {
+        languageManager.current == .english ? "عربي" : "ENG"
+    }
+
+    private var skipTitle: String {
+        languageManager.current == .arabic ? "تخطي" : "Skip"
+    }
+
+    private var nextTitle: String {
+        languageManager.current == .arabic ? "التالي" : "Next"
+    }
     
     var body: some View {
         ZStack {
-            // Background Image (local asset for instant loading)
-            // TODO: Replace with correct onboarding2-background exported at 1500x3248
+            // Background — same hero treatment as screen 1; swap asset when onboarding2-background is exported
             Image("welcoming-background")
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .ignoresSafeArea()
             
-            // Dark overlay
-            Color.black.opacity(0.3)
+            Color.black.opacity(0.59)
                 .ignoresSafeArea()
             
             VStack {
                 HStack {
-                    Spacer()
-                    Button(action: {
-                        languageManager.toggle()
-                    }) {
-                        Text(languageManager.current == .english ? "عربي" : "English")
-                            .font(.custom("ExpoArabic-Medium", size: 14))
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white)
+                    if languageManager.current == .arabic {
+                        Button(action: { languageManager.toggle() }) {
+                            Text(languageToggleTitle)
+                                .font(.custom("ExpoArabic-Medium", size: 14))
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .frame(width: 72, alignment: .leading)
+                        }
+                        .padding(.leading, 21)
+                        Spacer()
+                    } else {
+                        Spacer()
+                        Button(action: { languageManager.toggle() }) {
+                            Text(languageToggleTitle)
+                                .font(.custom("ExpoArabic-Medium", size: 14))
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                        }
+                        .padding(.trailing, 17)
                     }
-                    .padding(.trailing, 17)
                 }
                 .padding(.top, 56)
                 
@@ -50,6 +70,7 @@ struct OnboardingView2: View {
                             .fontWeight(.medium)
                             .foregroundColor(.white)
                             .multilineTextAlignment(.center)
+                            .environment(\.layoutDirection, languageManager.current == .arabic ? .rightToLeft : .leftToRight)
                             .frame(width: 297)
                             .fixedSize(horizontal: false, vertical: true)
                             .lineSpacing(24 * 0.216) // line-height: 1.216
@@ -63,6 +84,7 @@ struct OnboardingView2: View {
                             .fontWeight(.medium)
                             .foregroundColor(.white)
                             .multilineTextAlignment(.center)
+                            .environment(\.layoutDirection, languageManager.current == .arabic ? .rightToLeft : .leftToRight)
                             .frame(width: 285)
                             .fixedSize(horizontal: false, vertical: true)
                             .lineSpacing(16 * 0.216) // line-height: 1.216
@@ -89,21 +111,24 @@ struct OnboardingView2: View {
                         // Skip/Next buttons - 271px from brown box top (771px - 500px = 271px)
                         HStack(spacing: 0) {
                             Button(action: { onSkip?() }) {
-                                Text("Skip")
+                                Text(skipTitle)
                                     .font(.custom("ExpoArabic-Medium", size: 14))
                                     .fontWeight(.medium)
                                     .foregroundColor(.white)
+                                    .frame(width: 72, alignment: .leading)
                             }
                             
                             Spacer()
                             
                             Button(action: { onNext?() }) {
-                                Text("Next")
+                                Text(nextTitle)
                                     .font(.custom("ExpoArabic-Medium", size: 14))
                                     .fontWeight(.medium)
                                     .foregroundColor(.white)
+                                    .frame(width: 72, alignment: .trailing)
                             }
                         }
+                        .environment(\.layoutDirection, .leftToRight)
                         .frame(maxWidth: .infinity)
                         .padding(.horizontal, 39)
                         .padding(.bottom, 37)
@@ -123,4 +148,5 @@ struct OnboardingView2: View {
 
 #Preview {
     OnboardingView2()
+        .environmentObject(LanguageManager())
 }

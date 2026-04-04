@@ -2,257 +2,209 @@ import SwiftUI
 
 struct ActivityDetailView: View {
     let activity: Activity
+    @EnvironmentObject private var languageManager: LanguageManager
     @Environment(\.dismiss) private var dismiss
     @State private var isFavorite: Bool = false
-    @State private var quantity: Int = 1
     @State private var currentImageIndex: Int = 0
-    
+
+    private let brandBrown = Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0)
+    private let textGreen = Color(red: 0x21 / 255.0, green: 0x3C / 255.0, blue: 0x2E / 255.0)
+    private let pageBg = Color(red: 0xF3 / 255.0, green: 0xF3 / 255.0, blue: 0xF3 / 255.0)
+
+    private var isArabic: Bool { languageManager.current == .arabic }
+
     var body: some View {
         ZStack(alignment: .top) {
-            // Light gray background
-            Color(red: 0xF3 / 255.0, green: 0xF3 / 255.0, blue: 0xF3 / 255.0)
-                .ignoresSafeArea()
-            
+            pageBg.ignoresSafeArea()
+
             VStack(spacing: 0) {
-                // Top brown section
-                Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0)
+                // Brown header — matches restaurant (90pt)
+                brandBrown
                     .ignoresSafeArea(edges: .top)
-                    .frame(height: 60)
-                
-                // Main activity image with carousel
+                    .frame(height: 90)
+
+                // Hero image — 185pt, full width, heart + pager dots
                 ZStack(alignment: .topTrailing) {
-                    Image(activity.imageName)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: UIScreen.main.bounds.width, height: 185)
-                        .clipped()
-                    
-                    // Heart button
-                    Button(action: {
-                        isFavorite.toggle()
-                    }) {
+                    pageBg
+                    GeometryReader { geo in
+                        RemoteImage(imageName: activity.imageName)
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .clipped()
+                    }
+
+                    Button(action: { isFavorite.toggle() }) {
                         ZStack {
-                            Image("heart-icon")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 25, height: 25)
-                            
-                            Image("base")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 16, height: 16)
+                            Image("heart-icon").resizable().aspectRatio(contentMode: .fit).frame(width: 32, height: 32)
+                            Image("base").resizable().aspectRatio(contentMode: .fit).frame(width: 16, height: 16)
                         }
                     }
                     .padding(.top, 7)
-                    .padding(.trailing, 18)
-                }
-                .offset(y: -10)
-                
-                // Carousel dots
-                HStack(spacing: 6) {
-                    ForEach(0..<4, id: \.self) { index in
-                        Circle()
-                            .fill(index == currentImageIndex ? Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0) : Color(red: 0xD9 / 255.0, green: 0xD9 / 255.0, blue: 0xD9 / 255.0))
-                            .frame(width: 8, height: 8)
+                    .padding(.trailing, 8)
+
+                    VStack {
+                        Spacer(minLength: 0)
+                        HStack(spacing: 6) {
+                            ForEach(0..<4, id: \.self) { index in
+                                Circle()
+                                    .fill(index == currentImageIndex ? brandBrown : Color(red: 0xD9 / 255.0, green: 0xD9 / 255.0, blue: 0xD9 / 255.0))
+                                    .frame(width: 8, height: 8)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, 10)
                     }
+                    .allowsHitTesting(false)
                 }
-                .offset(y: -20)
-                
-                // Content section
+                .frame(maxWidth: .infinity)
+                .frame(height: 185)
+                .clipped()
+
+                // Content
                 VStack(alignment: .leading, spacing: 0) {
-                    // Activity name
-                    Text(activity.name)
+                    // Title
+                    Text(activity.displayTitle(isArabic: isArabic))
                         .font(.custom("ExpoArabic-Medium", size: 20))
                         .fontWeight(.medium)
-                        .foregroundColor(Color(red: 0x21 / 255.0, green: 0x3C / 255.0, blue: 0x2E / 255.0))
+                        .foregroundColor(textGreen)
+                        .multilineTextAlignment(isArabic ? .trailing : .leading)
+                        .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
                         .padding(.horizontal, 21)
-                        .padding(.top, 10)
-                    
-                    // Category type
-                    Text(activity.category)
+                        .padding(.top, 14)
+
+                    // Category
+                    Text(activity.displayCategory(isArabic: isArabic))
                         .font(.custom("ExpoArabic-Medium", size: 12))
                         .fontWeight(.medium)
-                        .foregroundColor(Color(red: 0x21 / 255.0, green: 0x3C / 255.0, blue: 0x2E / 255.0).opacity(0.58))
-                        .padding(.leading, 21)
+                        .foregroundColor(textGreen.opacity(0.7))
+                        .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
+                        .padding(.horizontal, 21)
                         .padding(.top, 5)
-                    
-                    // About section
-                    Text("About")
+
+                    // About
+                    Text(isArabic ? "عن التجربة" : "About")
                         .font(.custom("ExpoArabic-Medium", size: 16))
                         .fontWeight(.medium)
-                        .foregroundColor(Color(red: 0x21 / 255.0, green: 0x3C / 255.0, blue: 0x2E / 255.0))
-                        .padding(.leading, 21)
+                        .foregroundColor(textGreen)
+                        .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
+                        .padding(.horizontal, 21)
                         .padding(.top, 20)
-                    
-                    // Description
-                    Text(activity.description)
+
+                    Text(activity.displayDescription(isArabic: isArabic))
                         .font(.custom("ExpoArabic-Medium", size: 12))
                         .fontWeight(.medium)
-                        .foregroundColor(Color(red: 0x21 / 255.0, green: 0x3C / 255.0, blue: 0x2E / 255.0).opacity(0.81))
+                        .foregroundColor(textGreen.opacity(0.81))
                         .lineSpacing(4)
+                        .multilineTextAlignment(isArabic ? .trailing : .leading)
+                        .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 21)
                         .padding(.top, 12)
-                    
-                    // Location
-                    HStack(spacing: 6) {
-                        Image("location-icon")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 14, height: 18)
-                        
-                        Text(activity.location)
+
+                    if let safety = activity.displaySafetyGuidelines(isArabic: isArabic) {
+                        Text(isArabic ? "إرشادات السلامة" : "Safety Guidelines")
+                            .font(.custom("ExpoArabic-Medium", size: 15))
+                            .fontWeight(.medium)
+                            .foregroundColor(textGreen)
+                            .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
+                            .padding(.horizontal, 21)
+                            .padding(.top, 22)
+
+                        Text(safety)
                             .font(.custom("ExpoArabic-Medium", size: 12))
                             .fontWeight(.medium)
-                            .foregroundColor(Color(red: 0x21 / 255.0, green: 0x3C / 255.0, blue: 0x2E / 255.0).opacity(0.79))
+                            .foregroundColor(textGreen.opacity(0.81))
+                            .lineSpacing(4)
+                            .multilineTextAlignment(isArabic ? .trailing : .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, 21)
+                            .padding(.top, 8)
                     }
-                    .padding(.leading, 21)
-                    .padding(.top, 25)
-                    
-                    Spacer()
-                    
-                    // Book button and quantity controls
-                    HStack(spacing: 20) {
-                        // Book button
-                        NavigationLink(destination: BookingView(activity: activity)) {
-                            Text("Book")
-                                .font(.custom("ExpoArabic-Medium", size: 22))
+
+                    // Location
+                    HStack(spacing: 6) {
+                        if isArabic {
+                            Text(activity.displayLocation(isArabic: true))
+                                .font(.custom("ExpoArabic-Medium", size: 12))
                                 .fontWeight(.medium)
-                                .foregroundColor(.white)
-                                .frame(width: 197, height: 56)
-                                .background(Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0))
-                                .cornerRadius(13)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        
-                        Spacer()
-                        
-                        // Quantity controls
-                        HStack(spacing: 12) {
-                            // Plus button
-                            Button(action: {
-                                quantity += 1
-                            }) {
-                                Circle()
-                                    .fill(Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0))
-                                    .frame(width: 27, height: 27)
-                                    .overlay(
-                                        Image(systemName: "plus")
-                                            .font(.system(size: 14, weight: .bold))
-                                            .foregroundColor(.white)
-                                    )
-                            }
-                            
-                            // Quantity
-                            Text("\(quantity)")
-                                .font(.custom("ExpoArabic-Medium", size: 24))
+                                .foregroundColor(textGreen.opacity(0.79))
+                            Image("location-icon").resizable().aspectRatio(contentMode: .fit).frame(width: 14, height: 18)
+                        } else {
+                            Image("location-icon").resizable().aspectRatio(contentMode: .fit).frame(width: 14, height: 18)
+                            Text(activity.displayLocation(isArabic: false))
+                                .font(.custom("ExpoArabic-Medium", size: 12))
                                 .fontWeight(.medium)
-                                .foregroundColor(Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0))
-                                .frame(width: 18)
-                            
-                            // Minus button
-                            Button(action: {
-                                if quantity > 1 {
-                                    quantity -= 1
-                                }
-                            }) {
-                                Circle()
-                                    .fill(Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0))
-                                    .frame(width: 27, height: 27)
-                                    .overlay(
-                                        Image(systemName: "minus")
-                                            .font(.system(size: 14, weight: .bold))
-                                            .foregroundColor(.white)
-                                    )
-                            }
+                                .foregroundColor(textGreen.opacity(0.79))
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
                     .padding(.horizontal, 21)
+                    .padding(.top, 25)
+
+                    Spacer()
+
+                    // Book button — matches restaurant padding
+                    NavigationLink(destination: BookingView(activity: activity)) {
+                        Text(isArabic ? "احجز" : "Book")
+                            .font(.custom("ExpoArabic-Medium", size: 22))
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
+                            .background(brandBrown)
+                            .cornerRadius(13)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .padding(.horizontal, 26)
                     .padding(.bottom, 20)
                 }
-                
-                // Bottom navigation bar
-                ZStack(alignment: .center) {
-                    Color(red: 0x21 / 255.0, green: 0x3C / 255.0, blue: 0x2E / 255.0)
-                        .ignoresSafeArea(edges: .bottom)
-                    
+
+                // Bottom tab bar
+                ZStack {
+                    brandBrown.ignoresSafeArea(edges: .bottom)
                     HStack(spacing: 0) {
                         Spacer()
-                        
-                        Button(action: {}) {
-                            VStack {
-                                Spacer()
-                                Image("nav-home")
-                                    .resizable()
-                                    .renderingMode(.template)
-                                    .foregroundColor(.white)
-                                    .frame(width: 20, height: 20)
-                                Spacer()
-                            }
-                        }
-                        
+                        NavigationLink(destination: CategorySelectionView()) {
+                            Image("nav-icon-home").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 20, height: 22)
+                        }.buttonStyle(PlainButtonStyle())
                         Spacer()
-                        
-                        Button(action: {}) {
-                            VStack {
-                                Spacer()
-                                Image("nav-calendar")
-                                    .resizable()
-                                    .renderingMode(.template)
-                                    .foregroundColor(.white)
-                                    .frame(width: 20, height: 20)
-                                Spacer()
-                            }
-                        }
-                        
+                        BookingsCalendarNavigationLink()
                         Spacer()
-                        
-                        Button(action: {}) {
-                            VStack {
-                                Spacer()
-                                Image("nav-ticket")
-                                    .resizable()
-                                    .renderingMode(.template)
-                                    .foregroundColor(.white)
-                                    .frame(width: 20, height: 20)
-                                Spacer()
-                            }
-                        }
-                        
+                        Button(action: {}) { Image("nav-icon-grid").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 20, height: 20) }
                         Spacer()
-                        
-                        Button(action: {}) {
-                            VStack {
-                                Spacer()
-                                Image("nav-profile-bottom")
-                                    .resizable()
-                                    .renderingMode(.template)
-                                    .foregroundColor(.white)
-                                    .frame(width: 20, height: 20)
-                                Spacer()
-                            }
-                        }
-                        
+                        TicketsNavigationLink()
+                        Spacer()
+                        InvitationsNavigationLink(width: 20, height: 20)
                         Spacer()
                     }
+                    .padding(.top, 8)
                 }
-                .frame(height: 35)
+                .frame(height: 50)
+                .environment(\.layoutDirection, .leftToRight)
             }
-            
-            // Header overlay with back and menu buttons - on top of everything
+
+            // Header overlay — back + logo + menu
             VStack {
                 HStack(alignment: .center) {
-                    Button(action: {
-                        dismiss()
-                    }) {
+                    Button(action: { dismiss() }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 22, weight: .medium))
                             .foregroundColor(.white)
-                            .frame(width: 14, height: 25)
+                            .flipsForRightToLeftLayoutDirection(false)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
-                    .frame(width: 44, height: 44)
-                    
+                    .buttonStyle(PlainButtonStyle())
+
                     Spacer()
-                    
+
+                    Image("mrasem-logo")
+                        .resizable()
+                        .renderingMode(.original)
+                        .scaledToFit()
+                        .frame(height: 50)
+
+                    Spacer()
+
                     Button(action: {}) {
                         Image("menu-icon")
                             .resizable()
@@ -260,12 +212,16 @@ struct ActivityDetailView: View {
                             .frame(width: 28, height: 20)
                     }
                     .frame(width: 44, height: 44)
+                    .buttonStyle(PlainButtonStyle())
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 5)
-                
+                .environment(\.layoutDirection, .leftToRight)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+
                 Spacer()
             }
+            .allowsHitTesting(true)
+            .zIndex(10)
         }
         .navigationBarHidden(true)
         .navigationBarBackButtonHidden(true)
@@ -275,6 +231,7 @@ struct ActivityDetailView: View {
 #Preview {
     NavigationStack {
         ActivityDetailView(activity: Activity(name: "Scuba Diving", rating: 4.5, category: "Free Diving", imageName: "activity-scuba", location: "Jeddah, Saudi Arabia", description: "Explore the Red Sea with a professional 5-hour diving experience from Jeddah. Swim among colorful coral reefs and vibrant marine life, guided by certified instructors at dive sites suited to all levels. Small groups, top-notch gear, and clear waters make this an unforgettable underwater adventure. Your Red Sea journey starts here."))
+            .environmentObject(LanguageManager())
+            .environmentObject(InvitationStore())
     }
 }
-

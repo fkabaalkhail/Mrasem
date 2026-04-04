@@ -2,13 +2,22 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key></key>
-	<string></string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>alfont_com_AlFont_com_ExpoArabic-Medium.ttf</string>
 	</array>
-	<key>item</key>
-	<string>alfont_com_AlFont_com_ExpoArabic-Medium.ttf</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Mrasem uses your contacts so you can choose who to invite. Numbers stay on your device until you send an invitation.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>MRASEM_API_BASE_URL</key>
+	<string></string>
+	<key>MRASEM_SUPABASE_REST_URL</key>
+	<string>https://fltfmcqfoftzjhxxpsss.supabase.co/rest/v1</string>
+	<key>MRASEM_SUPABASE_ANON_KEY</key>
+	<string>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsdGZtY3Fmb2Z0empoeHhwc3NzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyMzI2MjksImV4cCI6MjA5MDgwODYyOX0.n-UpfbpIl2b8VKB--SunfeP7cu7QWU52uc09QQ4q7XQ</string>
 </dict>
 </plist>

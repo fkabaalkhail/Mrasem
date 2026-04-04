@@ -16,50 +16,21 @@ struct RestaurantDetailView: View {
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Top brown header with back arrow, logo, menu icon
-                ZStack {
-                    brandBrown.ignoresSafeArea(edges: .top)
-                    
-                    HStack(alignment: .center) {
-                        Button(action: { dismiss() }) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 22, weight: .medium))
-                                .foregroundColor(.white)
-                                .frame(width: 44, height: 44)
-                        }
-                        
-                        Spacer()
-                        
-                        // Mrasem logo centered in header
-                        Image("mrasem-logo")
-                            .resizable()
-                            .renderingMode(.original)
-                            .scaledToFit()
-                            .frame(height: 50)
-                        
-                        Spacer()
-                        
-                        Button(action: {}) {
-                            Image("menu-icon")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 28, height: 20)
-                        }
-                        .frame(width: 44, height: 44)
-                    }
-                    .padding(.horizontal, 16)
-                }
-                .frame(height: 90)
+                // Brown bar only — back/logo/menu live in overlay so RTL / nested layout never steals taps.
+                brandBrown
+                    .ignoresSafeArea(edges: .top)
+                    .frame(height: 90)
                 
-                // Restaurant image with heart button
+                // Hero image — fixed height so the placeholder Color + ZStack cannot expand and leave a huge gap below the photo.
                 ZStack(alignment: .topTrailing) {
-                    Image(restaurant.imageName)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 185)
-                        .clipped()
-                    
+                    Color(red: 0xF3 / 255.0, green: 0xF3 / 255.0, blue: 0xF3 / 255.0)
+                    GeometryReader { geo in
+                        RemoteImage(imageName: restaurant.imageName)
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .clipped()
+                    }
+
                     Button(action: { isFavorite.toggle() }) {
                         ZStack {
                             Image("heart-icon").resizable().aspectRatio(contentMode: .fit).frame(width: 32, height: 32)
@@ -68,17 +39,24 @@ struct RestaurantDetailView: View {
                     }
                     .padding(.top, 7)
                     .padding(.trailing, 8)
-                }
-                
-                // Carousel dots
-                HStack(spacing: 6) {
-                    ForEach(0..<4, id: \.self) { index in
-                        Circle()
-                            .fill(index == currentImageIndex ? brandBrown : Color(red: 0xD9 / 255.0, green: 0xD9 / 255.0, blue: 0xD9 / 255.0))
-                            .frame(width: 8, height: 8)
+
+                    VStack {
+                        Spacer(minLength: 0)
+                        HStack(spacing: 6) {
+                            ForEach(0..<4, id: \.self) { index in
+                                Circle()
+                                    .fill(index == currentImageIndex ? brandBrown : Color(red: 0xD9 / 255.0, green: 0xD9 / 255.0, blue: 0xD9 / 255.0))
+                                    .frame(width: 8, height: 8)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, 10)
                     }
+                    .allowsHitTesting(false)
                 }
-                .padding(.top, 8)
+                .frame(maxWidth: .infinity)
+                .frame(height: 185)
+                .clipped()
                 
                 // Content section
                 VStack(alignment: .leading, spacing: 0) {
@@ -94,7 +72,7 @@ struct RestaurantDetailView: View {
                             }
                             Spacer()
                             if restaurant.hasMichelin {
-                                Text("MICHELIN")
+                                Text("ميشلان")
                                     .font(.custom("ExpoArabic-Medium", size: 10))
                                     .fontWeight(.medium)
                                     .foregroundColor(Color(red: 0xA7 / 255.0, green: 0x1E / 255.0, blue: 0x1E / 255.0))
@@ -169,14 +147,14 @@ struct RestaurantDetailView: View {
                     // Location
                     HStack(spacing: 6) {
                         if languageManager.current == .arabic {
-                            Text("جدة، السعودية")
+                            Text("\(restaurant.arabicCity)، السعودية")
                                 .font(.custom("ExpoArabic-Medium", size: 12))
                                 .fontWeight(.medium)
                                 .foregroundColor(textGreen.opacity(0.79))
                             Image("location-icon").resizable().aspectRatio(contentMode: .fit).frame(width: 14, height: 18)
                         } else {
                             Image("location-icon").resizable().aspectRatio(contentMode: .fit).frame(width: 14, height: 18)
-                            Text("Jeddah, Saudi Arabia")
+                            Text("\(restaurant.city), Saudi Arabia")
                                 .font(.custom("ExpoArabic-Medium", size: 12))
                                 .fontWeight(.medium)
                                 .foregroundColor(textGreen.opacity(0.79))
@@ -209,21 +187,65 @@ struct RestaurantDetailView: View {
                     brandBrown.ignoresSafeArea(edges: .bottom)
                     HStack(spacing: 0) {
                         Spacer()
-                        Button(action: {}) { Image("nav-icon-home").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 20, height: 22) }
+                        NavigationLink(destination: CategorySelectionView()) {
+                            Image("nav-icon-home").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 20, height: 22)
+                        }.buttonStyle(PlainButtonStyle())
                         Spacer()
-                        Button(action: {}) { Image("nav-icon-calendar").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 21, height: 21) }
+                        BookingsCalendarNavigationLink()
                         Spacer()
                         Button(action: {}) { Image("nav-icon-grid").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 20, height: 20) }
                         Spacer()
-                        Button(action: {}) { Image("nav-icon-ticket").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 23, height: 18) }
+                        TicketsNavigationLink()
                         Spacer()
-                        Button(action: {}) { Image("nav-icon-profile").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 20, height: 20) }
+                        InvitationsNavigationLink(width: 20, height: 20)
                         Spacer()
                     }
                     .padding(.top, 8)
                 }
                 .frame(height: 50)
+                .environment(\.layoutDirection, .leftToRight)
             }
+
+            // Header chrome above all content (same idea as ActivityDetailView / SeasonEventDetailView).
+            VStack {
+                HStack(alignment: .center) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 22, weight: .medium))
+                            .foregroundColor(.white)
+                            .flipsForRightToLeftLayoutDirection(false)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    Image("mrasem-logo")
+                        .resizable()
+                        .renderingMode(.original)
+                        .scaledToFit()
+                        .frame(height: 50)
+
+                    Spacer()
+
+                    Button(action: {}) {
+                        Image("menu-icon")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 28, height: 20)
+                    }
+                    .frame(width: 44, height: 44)
+                    .buttonStyle(.plain)
+                }
+                .environment(\.layoutDirection, .leftToRight)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+
+                Spacer()
+            }
+            .allowsHitTesting(true)
+            .zIndex(100)
         }
         .navigationBarHidden(true)
         .navigationBarBackButtonHidden(true)
@@ -246,5 +268,6 @@ struct RestaurantDetailView: View {
             )
         )
         .environmentObject(LanguageManager())
+        .environmentObject(InvitationStore())
     }
 }

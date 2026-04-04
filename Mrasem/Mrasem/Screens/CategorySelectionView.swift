@@ -48,11 +48,13 @@ struct CategorySelectionView: View {
                             )
                         }
                         
-                        CategoryCard(
-                            title: languageManager.current == .arabic ? "حجز السيارات" : "Car Booking",
-                            imageName: "car-booking",
-                            isRTL: languageManager.current == .arabic
-                        )
+                        NavigationLink(destination: CarBookingView().environmentObject(languageManager)) {
+                            CategoryCard(
+                                title: languageManager.current == .arabic ? "حجز السيارات" : "Car Booking",
+                                imageName: "car-booking",
+                                isRTL: languageManager.current == .arabic
+                            )
+                        }
                     }
                 }
                 .padding(.horizontal, 24)

@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Brand colors:
+  - White #FFFFFF — surfaces
+  - Preiwinki #31231B — dark brown (sidebar / splash), Figma + iOS
+  - Accent green #213C2E — links, active nav, focus (restored; preferred over maroon)
+*/
+:root {
+  --mrasem-white: #ffffff;
+  --mrasem-preiwinki: #31231b;
+  --mrasem-awaki: #213c2e;
+  --mrasem-page: #fafafa;
+  --background: var(--mrasem-page);
+  --foreground: #1a1a1a;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

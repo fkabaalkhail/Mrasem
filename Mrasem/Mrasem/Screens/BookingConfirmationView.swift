@@ -1,251 +1,304 @@
 import SwiftUI
+import UIKit
 
 struct BookingConfirmationView: View {
     let restaurant: Restaurant?
     let activity: Activity?
+    let seasonEvent: SeasonEvent?
     let selectedDate: Date?
     let selectedTime: String
     let selectedBranch: String
     let quantity: Int
-    
+    let ticketCode: String
+    let selectedAdditionalServices: Set<String>
+
+    @State private var showWalletPass = false
+    @EnvironmentObject private var reservationStore: ReservationStore
+    @EnvironmentObject private var languageManager: LanguageManager
+
     private let brandBrown = Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0)
     private let textGreen = Color(red: 0x21 / 255.0, green: 0x3C / 255.0, blue: 0x2E / 255.0)
-    
+    private let pageBg = Color(red: 0xF3 / 255.0, green: 0xF3 / 255.0, blue: 0xF3 / 255.0)
+    private let confirmGray = Color(red: 0x67 / 255.0, green: 0x67 / 255.0, blue: 0x67 / 255.0)
+
+    private var isArabic: Bool { languageManager.current == .arabic }
+
     private var dateString: String {
         guard let date = selectedDate else { return "—" }
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d"
+        formatter.locale = isArabic ? Locale(identifier: "ar") : Locale(identifier: "en_US_POSIX")
         return formatter.string(from: date)
     }
-    
-    private var displayName: String {
-        if let r = restaurant { return r.name + " Restaurant" }
+
+    private var placeTitle: String {
+        if let r = restaurant {
+            return isArabic ? "\(r.arabicName) — مطعم" : r.name + " Restaurant"
+        }
         if let a = activity { return a.name }
-        return ""
+        if let e = seasonEvent { return e.name }
+        return isArabic ? "الحجز" : "Booking"
     }
-    
-    private var displayImage: String {
-        restaurant?.imageName ?? activity?.imageName ?? ""
+
+    /// Venue line without " Restaurant" suffix for confirmation card (Figma: e.g. "Khemah The Groves")
+    private var venueDisplayName: String {
+        if let r = restaurant { return isArabic ? r.arabicName : r.name }
+        if let a = activity { return a.name }
+        if let e = seasonEvent { return e.name }
+        return isArabic ? "الحجز" : "Booking"
     }
-    
-    private var displayCuisine: String {
-        restaurant?.cuisine ?? ""
+
+    private var heroImageName: String {
+        restaurant?.imageName ?? activity?.imageName ?? seasonEvent?.imageName ?? "mrasem-logo"
     }
-    
+
+    private var peopleLine: String {
+        if isArabic {
+            if quantity == 1 { return "شخص واحد" }
+            return "\(quantity) أشخاص"
+        }
+        return "\(quantity) \(quantity == 1 ? "Person" : "People")"
+    }
+
+    private var additionalServicesLine: String? {
+        guard !selectedAdditionalServices.isEmpty else { return nil }
+        return AdditionalServiceLocalization.joinedDisplay(services: selectedAdditionalServices, arabic: isArabic)
+    }
+
+    private var hasBookingCheckAsset: Bool {
+        UIImage(named: "booking-checkmark") != nil
+    }
+
     var body: some View {
         ZStack {
-            Color(red: 0xF3 / 255.0, green: 0xF3 / 255.0, blue: 0xF3 / 255.0)
-                .ignoresSafeArea()
-            
+            pageBg.ignoresSafeArea()
+
             VStack(spacing: 0) {
-                // Top brown header — no back arrow, just logo + menu
-                ZStack {
-                    brandBrown.ignoresSafeArea(edges: .top)
-                    
-                    HStack(alignment: .center) {
-                        Color.clear.frame(width: 44, height: 44)
-                        
-                        Spacer()
-                        
-                        Image("mrasem-logo")
+                // Figma 1202:11746 — brown band through status bar (no light gap above header).
+                Color.clear
+                    .frame(height: 114)
+                    .frame(maxWidth: .infinity)
+                    .background {
+                        brandBrown.ignoresSafeArea(edges: .top)
+                    }
+
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        confirmationHeader
+                            .padding(.top, 20)
+                            .padding(.horizontal, 21)
+
+                        bookingDetailsCard
+                            .padding(.top, 28)
+                            .padding(.horizontal, 21)
+                            .padding(.bottom, 24)
+                    }
+                }
+
+                Spacer(minLength: 0)
+
+                VStack(spacing: 12) {
+                    Button(action: { showWalletPass = true }) {
+                        Image("add-to-apple-wallet-badge")
                             .resizable()
                             .renderingMode(.original)
                             .scaledToFit()
-                            .frame(height: 50)
-                        
-                        Spacer()
-                        
-                        Button(action: {}) {
-                            Image("menu-icon")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 28, height: 20)
-                        }
-                        .frame(width: 44, height: 44)
+                            .frame(width: 136, height: 42)
                     }
-                    .padding(.horizontal, 16)
-                }
-                .frame(height: 90)
-                
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        // Checkmark + confirmation title
-                        HStack(spacing: 12) {
-                            Image("booking-checkmark")
-                                .resizable()
-                                .renderingMode(.original)
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 40, height: 40)
-                            
-                            Text("Your Booking is Confirmed!")
-                                .font(.custom("ExpoArabic-Medium", size: 20))
-                                .fontWeight(.medium)
-                                .foregroundColor(textGreen)
-                        }
-                        .padding(.top, 30)
-                        .padding(.horizontal, 21)
-                        
-                        // Confirmation message
-                        Text("Your booking has been successfully confirmed! A confirmation message will be sent to your phone number +966 559035417.")
-                            .font(.custom("ExpoArabic-Medium", size: 12))
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityLabel(isArabic ? "إضافة إلى Apple Wallet" : "Add to Apple Wallet")
+
+                    NavigationLink(destination: CategorySelectionView()) {
+                        Text(isArabic ? "العودة للرئيسية" : "Back to Home")
+                            .font(.custom("ExpoArabic-Medium", size: 22))
                             .fontWeight(.medium)
-                            .foregroundColor(Color(red: 0.4, green: 0.4, blue: 0.4))
-                            .frame(width: 307, alignment: .topLeading)
-                            .lineSpacing(4)
-                            .padding(.top, 16)
-                            .padding(.horizontal, 21)
-                        
-                        // Booking Details title
-                        Text("Booking Details")
-                            .font(.custom("ExpoArabic-Medium", size: 16))
-                            .fontWeight(.medium)
-                            .foregroundColor(brandBrown)
-                            .padding(.top, 30)
-                            .padding(.horizontal, 21)
-                        
-                        // Restaurant name + image row
-                        HStack(alignment: .top) {
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text(displayName)
-                                    .font(.custom("ExpoArabic-Medium", size: 20))
-                                    .fontWeight(.bold)
-                                    .foregroundColor(brandBrown)
-                                
-                                if !displayCuisine.isEmpty {
-                                    HStack(spacing: 6) {
-                                        Image("booking-location")
-                                            .resizable()
-                                            .renderingMode(.original)
-                                            .aspectRatio(contentMode: .fit)
-                                            .frame(width: 16, height: 16)
-                                        Text(displayCuisine)
-                                            .font(.custom("ExpoArabic-Medium", size: 12))
-                                            .fontWeight(.medium)
-                                            .foregroundColor(brandBrown.opacity(0.7))
-                                    }
-                                    .padding(.top, 6)
-                                }
-                            }
-                            
-                            Spacer()
-                            
-                            Image(displayImage)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 90, height: 60)
-                                .clipped()
-                                .cornerRadius(7)
-                        }
-                        .padding(.top, 14)
-                        .padding(.horizontal, 21)
-                        
-                        Divider().padding(.top, 16).padding(.horizontal, 21)
-                        
-                        // Date
-                        HStack(spacing: 10) {
-                            Image("booking-calendar")
-                                .resizable()
-                                .renderingMode(.original)
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 18, height: 18)
-                            Text(dateString)
-                                .font(.custom("ExpoArabic-Medium", size: 12))
-                                .fontWeight(.medium)
-                                .foregroundColor(brandBrown)
-                        }
-                        .padding(.top, 16)
-                        .padding(.horizontal, 21)
-                        
-                        // Time — clock (Group-2.png)
-                        HStack(spacing: 10) {
-                            Image("booking-passengers")
-                                .resizable()
-                                .renderingMode(.original)
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 18, height: 18)
-                            Text(selectedTime)
-                                .font(.custom("ExpoArabic-Medium", size: 12))
-                                .fontWeight(.medium)
-                                .foregroundColor(brandBrown)
-                        }
-                        .padding(.top, 14)
-                        .padding(.horizontal, 21)
-                        
-                        // Branch / Location — pin (Group.png)
-                        HStack(spacing: 10) {
-                            Image("booking-clock")
-                                .resizable()
-                                .renderingMode(.original)
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 18, height: 18)
-                            Text(selectedBranch)
-                                .font(.custom("ExpoArabic-Medium", size: 12))
-                                .fontWeight(.medium)
-                                .foregroundColor(brandBrown)
-                                .underline()
-                        }
-                        .padding(.top, 14)
-                        .padding(.horizontal, 21)
-                        
-                        // Passengers — person (Group-3.png)
-                        HStack(spacing: 10) {
-                            Image("booking-fork")
-                                .resizable()
-                                .renderingMode(.original)
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 18, height: 18)
-                            Text("Up to \(quantity) passengers")
-                                .font(.custom("ExpoArabic-Medium", size: 12))
-                                .fontWeight(.medium)
-                                .foregroundColor(brandBrown)
-                        }
-                        .padding(.top, 14)
-                        .padding(.horizontal, 21)
-                        .padding(.bottom, 30)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
+                            .background(brandBrown)
+                            .cornerRadius(13)
                     }
+                    .buttonStyle(PlainButtonStyle())
                 }
-                
-                Spacer()
-                
-                // Back to Home button
-                NavigationLink(destination: RestaurantListView()
-                    .navigationBarHidden(true)
-                    .navigationBarBackButtonHidden(true)
-                ) {
-                    Text("Back to Home")
-                        .font(.custom("ExpoArabic-Medium", size: 22))
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .frame(width: 280, height: 56)
-                        .background(brandBrown)
-                        .cornerRadius(13)
-                }
-                .buttonStyle(PlainButtonStyle())
-                .padding(.bottom, 20)
-                
-                // Bottom nav bar
-                ZStack {
-                    brandBrown.ignoresSafeArea(edges: .bottom)
-                    HStack(spacing: 0) {
-                        Spacer()
-                        Button(action: {}) { Image("nav-icon-home").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 20, height: 22) }
-                        Spacer()
-                        Button(action: {}) { Image("nav-icon-calendar").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 21, height: 21) }
-                        Spacer()
-                        Button(action: {}) { Image("nav-icon-grid").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 20, height: 20) }
-                        Spacer()
-                        Button(action: {}) { Image("nav-icon-ticket").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 23, height: 18) }
-                        Spacer()
-                        Button(action: {}) { Image("nav-icon-profile").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 20, height: 20) }
-                        Spacer()
-                    }
-                    .padding(.top, 8)
-                }
-                .frame(height: 50)
+                .padding(.horizontal, 26)
+                .padding(.bottom, 12)
+
+                bottomNav
             }
+            .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
         }
         .navigationBarHidden(true)
         .navigationBarBackButtonHidden(true)
+        .onAppear {
+            reservationStore.registerCompletedBookingIfNeeded(
+                ticketCode: ticketCode,
+                restaurant: restaurant,
+                activity: activity,
+                seasonEvent: seasonEvent,
+                selectedDate: selectedDate,
+                selectedTime: selectedTime,
+                branch: selectedBranch
+            )
+        }
+        .sheet(isPresented: $showWalletPass) {
+            NavigationStack {
+                ZStack {
+                    pageBg.ignoresSafeArea()
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            Text(isArabic ? "تذكرتك" : "Your ticket")
+                                .font(.custom("ExpoArabic-Medium", size: 18))
+                                .foregroundColor(textGreen)
+                            BookingWalletPassView(
+                                guestName: "Abdullah",
+                                placeName: placeTitle,
+                                heroImageName: heroImageName,
+                                dateString: dateString,
+                                ticketCode: ticketCode
+                            )
+                        }
+                        .padding(.vertical, 24)
+                    }
+                }
+                .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(isArabic ? "تم" : "Done") { showWalletPass = false }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Figma 1202:11746 — check + title + body
+    private var confirmationHeader: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Group {
+                if hasBookingCheckAsset {
+                    Image("booking-checkmark")
+                        .resizable()
+                        .renderingMode(.original)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 48, height: 48)
+                } else {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 48))
+                        .foregroundColor(Color(red: 0x4C / 255.0, green: 0xAF / 255.0, blue: 0x50 / 255.0))
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text(isArabic ? "تم تأكيد حجزك!" : "Your Booking is Confirmed!")
+                    .font(.custom("ExpoArabic-Medium", size: 20))
+                    .foregroundColor(textGreen)
+
+                Text(
+                    isArabic
+                        ? "تم تأكيد حجزك بنجاح! ستصلك رسالة تأكيد على رقم جوالك +966 559035417."
+                        : "Your booking has been successfully confirmed! A confirmation message will be sent to your phone number +966 559035417."
+                )
+                    .font(.custom("ExpoArabic-Medium", size: 12))
+                    .foregroundColor(confirmGray)
+                    .lineSpacing(4)
+                    .multilineTextAlignment(isArabic ? .trailing : .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    /// Figma 1202:11746 — details title, venue + thumb, icon rows
+    private var bookingDetailsCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(isArabic ? "تفاصيل الحجز" : "Booking Details")
+                .font(.custom("ExpoArabic-Medium", size: 16))
+                .foregroundColor(textGreen)
+
+            HStack(alignment: .top, spacing: 12) {
+                Text(venueDisplayName)
+                    .font(.custom("ExpoArabic-Medium", size: 20))
+                    .foregroundColor(brandBrown)
+                    .lineLimit(3)
+                    .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
+                    .multilineTextAlignment(isArabic ? .trailing : .leading)
+
+                Image(heroImageName)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 118, height: 61)
+                    .clipped()
+                    .cornerRadius(7)
+            }
+            .padding(.top, 14)
+
+            VStack(alignment: .leading, spacing: 0) {
+                // Asset PNGs follow legacy filenames: `booking-passengers` = clock art, `booking-clock` = pin,
+                // `booking-location` = fork (see BookingDetailsView). Match semantics to Figma row order: date → time → branch → guests.
+                confirmationDetailRow(icon: "booking-calendar", text: dateString)
+                    .padding(.top, 18)
+                confirmationDetailRow(icon: "booking-passengers", text: selectedTime)
+                    .padding(.top, 14)
+                confirmationDetailRow(icon: "booking-clock", text: selectedBranch, underline: true)
+                    .padding(.top, 14)
+                confirmationDetailRow(icon: "booking-fork", text: peopleLine)
+                    .padding(.top, 14)
+                if let line = additionalServicesLine {
+                    confirmationDetailRow(systemIcon: "figure.roll", text: line)
+                        .padding(.top, 14)
+                }
+            }
+        }
+    }
+
+    private func confirmationDetailRow(icon: String, text: String, underline: Bool = false) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image(icon)
+                .resizable()
+                .renderingMode(.original)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 18, height: 18)
+            Text(text)
+                .font(.custom("ExpoArabic-Medium", size: 11))
+                .foregroundColor(textGreen)
+                .underline(underline)
+        }
+    }
+
+    private func confirmationDetailRow(systemIcon: String, text: String) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: systemIcon)
+                .font(.system(size: 15, weight: .regular))
+                .foregroundColor(textGreen.opacity(0.85))
+                .frame(width: 18, height: 18)
+            Text(text)
+                .font(.custom("ExpoArabic-Medium", size: 11))
+                .foregroundColor(textGreen)
+        }
+    }
+
+    private var bottomNav: some View {
+        ZStack {
+            brandBrown.ignoresSafeArea(edges: .bottom)
+            HStack(spacing: 0) {
+                Spacer()
+                NavigationLink(destination: CategorySelectionView()) {
+                    Image("nav-icon-home").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 20, height: 22)
+                }
+                .buttonStyle(PlainButtonStyle())
+                Spacer()
+                BookingsCalendarNavigationLink()
+                Spacer()
+                Button(action: {}) { Image("nav-icon-grid").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 20, height: 20) }
+                Spacer()
+                TicketsNavigationLink()
+                Spacer()
+                InvitationsNavigationLink(width: 20, height: 20)
+                Spacer()
+            }
+            .padding(.top, 8)
+        }
+        .frame(height: 50)
+        .environment(\.layoutDirection, .leftToRight)
     }
 }
 
@@ -264,10 +317,16 @@ struct BookingConfirmationView: View {
                 arabicDescription: "ميازو يقدّم تجربة طعام يابانية عصرية."
             ),
             activity: nil,
+            seasonEvent: nil,
             selectedDate: Date(),
             selectedTime: "1:00PM",
             selectedBranch: "Albasateen Mall, Alrawdha",
-            quantity: 4
+            quantity: 4,
+            ticketCode: "11223344556677",
+            selectedAdditionalServices: ["Wheelchair"]
         )
+        .environmentObject(ReservationStore())
+        .environmentObject(InvitationStore())
+        .environmentObject(LanguageManager())
     }
 }

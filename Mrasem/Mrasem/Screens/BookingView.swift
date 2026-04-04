@@ -3,14 +3,18 @@ import SwiftUI
 struct BookingView: View {
     let restaurant: Restaurant?
     let activity: Activity?
-    
-    init(restaurant: Restaurant? = nil, activity: Activity? = nil) {
+    let seasonEvent: SeasonEvent?
+
+    init(restaurant: Restaurant? = nil, activity: Activity? = nil, seasonEvent: SeasonEvent? = nil) {
         self.restaurant = restaurant
         self.activity = activity
+        self.seasonEvent = seasonEvent
     }
     
     @Environment(\.dismiss) private var dismiss
-    @State private var selectedDate: Date?
+    @EnvironmentObject private var languageManager: LanguageManager
+    /// Default today so Confirm → My Reservations always has a date (store skips registration when nil).
+    @State private var selectedDate: Date? = Calendar.current.startOfDay(for: Date())
     @State private var currentMonth: Date = Date()
     @State private var quantity: Int = 1
     @State private var selectedTime: String? = "1:00PM"
@@ -22,6 +26,16 @@ struct BookingView: View {
     
     private let timeSlots = ["1:00PM", "3:00PM", "5:30PM", "7:10PM"]
     private let branches = ["Al-Basateen Mall"]
+
+    private var isArabic: Bool { languageManager.current == .arabic }
+
+    /// Gregorian Sun–Sat labels (Figma Arabic booking calendar).
+    private var weekdayLabels: [String] {
+        if isArabic {
+            return ["أحد", "إثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"]
+        }
+        return ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+    }
     
     var body: some View {
         ZStack {
@@ -38,19 +52,22 @@ struct BookingView: View {
                                 Image(systemName: "chevron.left")
                                     .font(.system(size: 22, weight: .medium))
                                     .foregroundColor(.white)
+                                    .flipsForRightToLeftLayoutDirection(false)
                                     .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
                             }
-                            
+                            .buttonStyle(.plain)
+
                             Spacer()
-                            
+
                             Image("mrasem-logo")
                                 .resizable()
                                 .renderingMode(.original)
                                 .scaledToFit()
                                 .frame(height: 50)
-                            
+
                             Spacer()
-                            
+
                             Button(action: {}) {
                                 Image("menu-icon")
                                     .resizable()
@@ -58,18 +75,20 @@ struct BookingView: View {
                                     .frame(width: 28, height: 20)
                             }
                             .frame(width: 44, height: 44)
+                            .buttonStyle(.plain)
                         }
+                        .environment(\.layoutDirection, .leftToRight)
                         .padding(.horizontal, 16)
                         
                         // Title
                         Spacer()
                         
-                        Text("Choose Date & Branch")
+                        Text(isArabic ? "اختر التاريخ والفرع" : "Choose Date & Branch")
                             .font(.custom("ExpoArabic-Medium", size: 20))
                             .fontWeight(.medium)
                             .foregroundColor(.white)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.leading, 21)
+                            .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
+                            .padding(isArabic ? .trailing : .leading, 21)
                             .padding(.bottom, 14)
                     }
                 }
@@ -80,29 +99,49 @@ struct BookingView: View {
                     VStack(spacing: 0) {
                         // Month and year navigation
                         HStack {
-                            Button(action: {
-                                currentMonth = calendar.date(byAdding: .month, value: -1, to: currentMonth) ?? currentMonth
-                            }) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(textGreen)
-                            }
-                            
-                            Spacer()
-                            
-                            Text(monthYearString)
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(Color(red: 0x3D / 255.0, green: 0x2F / 255.0, blue: 0x4B / 255.0))
-                                .textCase(.uppercase)
-                            
-                            Spacer()
-                            
-                            Button(action: {
-                                currentMonth = calendar.date(byAdding: .month, value: 1, to: currentMonth) ?? currentMonth
-                            }) {
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(textGreen)
+                            if isArabic {
+                                Button(action: {
+                                    currentMonth = calendar.date(byAdding: .month, value: 1, to: currentMonth) ?? currentMonth
+                                }) {
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundColor(textGreen)
+                                }
+                                Spacer()
+                                Text(monthYearString)
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(Color(red: 0x3D / 255.0, green: 0x2F / 255.0, blue: 0x4B / 255.0))
+                                    .textCase(.uppercase)
+                                    .multilineTextAlignment(.center)
+                                Spacer()
+                                Button(action: {
+                                    currentMonth = calendar.date(byAdding: .month, value: -1, to: currentMonth) ?? currentMonth
+                                }) {
+                                    Image(systemName: "chevron.left")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundColor(textGreen)
+                                }
+                            } else {
+                                Button(action: {
+                                    currentMonth = calendar.date(byAdding: .month, value: -1, to: currentMonth) ?? currentMonth
+                                }) {
+                                    Image(systemName: "chevron.left")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundColor(textGreen)
+                                }
+                                Spacer()
+                                Text(monthYearString)
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(Color(red: 0x3D / 255.0, green: 0x2F / 255.0, blue: 0x4B / 255.0))
+                                    .textCase(.uppercase)
+                                Spacer()
+                                Button(action: {
+                                    currentMonth = calendar.date(byAdding: .month, value: 1, to: currentMonth) ?? currentMonth
+                                }) {
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundColor(textGreen)
+                                }
                             }
                         }
                         .padding(.horizontal, 31)
@@ -111,10 +150,12 @@ struct BookingView: View {
                         
                         // Days of week header
                         HStack(spacing: 4) {
-                            ForEach(["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"], id: \.self) { day in
+                            ForEach(Array(weekdayLabels.enumerated()), id: \.offset) { _, day in
                                 Text(day)
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .font(.system(size: isArabic ? 11 : 14, weight: .semibold))
                                     .foregroundColor(Color(red: 0x3D / 255.0, green: 0x2F / 255.0, blue: 0x4B / 255.0))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.65)
                                     .frame(width: 48, height: 27)
                             }
                         }
@@ -123,14 +164,14 @@ struct BookingView: View {
                         
                         // Calendar grid
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 4) {
-                            ForEach(calendarDays, id: \.self) { date in
+                            ForEach(Array(calendarDays.enumerated()), id: \.offset) { _, date in
                                 if let date = date {
                                     DateButton(
                                         date: date,
                                         isSelected: selectedDate != nil && calendar.isDate(date, inSameDayAs: selectedDate!),
-                                        isDisabled: date < calendar.startOfDay(for: Date())
+                                        isDisabled: calendar.startOfDay(for: date) < calendar.startOfDay(for: Date())
                                     ) {
-                                        if date >= calendar.startOfDay(for: Date()) {
+                                        if calendar.startOfDay(for: date) >= calendar.startOfDay(for: Date()) {
                                             selectedDate = date
                                         }
                                     }
@@ -143,12 +184,12 @@ struct BookingView: View {
                         .padding(.top, 8)
                         
                         // Select Time
-                        Text("Select Time")
+                        Text(isArabic ? "اختر الوقت" : "Select Time")
                             .font(.custom("ExpoArabic-Medium", size: 16))
                             .fontWeight(.medium)
                             .foregroundColor(textGreen.opacity(0.84))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.leading, 21)
+                            .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
+                            .padding(isArabic ? .trailing : .leading, 21)
                             .padding(.top, 20)
                         
                         // Time slots
@@ -170,16 +211,16 @@ struct BookingView: View {
                             }
                             Spacer()
                         }
-                        .padding(.leading, 21)
+                        .padding(isArabic ? .trailing : .leading, 21)
                         .padding(.top, 12)
                         
                         // Select Branch
-                        Text("Select Branch")
+                        Text(isArabic ? "اختر الفرع" : "Select Branch")
                             .font(.custom("ExpoArabic-Medium", size: 16))
                             .fontWeight(.medium)
                             .foregroundColor(textGreen.opacity(0.84))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.leading, 21)
+                            .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
+                            .padding(isArabic ? .trailing : .leading, 21)
                             .padding(.top, 20)
                         
                         // Branch pills
@@ -202,10 +243,11 @@ struct BookingView: View {
                             }
                             Spacer()
                         }
-                        .padding(.leading, 21)
+                        .padding(isArabic ? .trailing : .leading, 21)
                         .padding(.top, 12)
                         .padding(.bottom, 20)
                     }
+                    .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
                 }
                 
                 // Next button and quantity controls
@@ -213,12 +255,13 @@ struct BookingView: View {
                     NavigationLink(destination: BookingDetailsView(
                         restaurant: restaurant,
                         activity: activity,
+                        seasonEvent: seasonEvent,
                         selectedDate: selectedDate,
                         selectedTime: selectedTime ?? "1:00PM",
                         selectedBranch: selectedBranch,
                         quantity: quantity
                     )) {
-                        Text("Next")
+                        Text(isArabic ? "التالي" : "Next")
                             .font(.custom("ExpoArabic-Medium", size: 22))
                             .fontWeight(.medium)
                             .foregroundColor(.white)
@@ -262,26 +305,31 @@ struct BookingView: View {
                 }
                 .padding(.horizontal, 21)
                 .padding(.bottom, 16)
+                .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
                 
                 // Bottom nav bar — brown, 5 icons
                 ZStack {
                     brandBrown.ignoresSafeArea(edges: .bottom)
                     HStack(spacing: 0) {
                         Spacer()
-                        Button(action: {}) { Image("nav-icon-home").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 20, height: 22) }
+                        NavigationLink(destination: CategorySelectionView()) {
+                            Image("nav-icon-home").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 20, height: 22)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                         Spacer()
-                        Button(action: {}) { Image("nav-icon-calendar").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 21, height: 21) }
+                        BookingsCalendarNavigationLink()
                         Spacer()
                         Button(action: {}) { Image("nav-icon-grid").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 20, height: 20) }
                         Spacer()
-                        Button(action: {}) { Image("nav-icon-ticket").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 23, height: 18) }
+                        TicketsNavigationLink()
                         Spacer()
-                        Button(action: {}) { Image("nav-icon-profile").resizable().renderingMode(.original).aspectRatio(contentMode: .fit).frame(width: 20, height: 20) }
+                        InvitationsNavigationLink(width: 20, height: 20)
                         Spacer()
                     }
                     .padding(.top, 8)
                 }
                 .frame(height: 50)
+                .environment(\.layoutDirection, .leftToRight)
             }
         }
         .navigationBarHidden(true)
@@ -291,6 +339,7 @@ struct BookingView: View {
     private var monthYearString: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM yyyy"
+        formatter.locale = isArabic ? Locale(identifier: "ar") : Locale(identifier: "en_US_POSIX")
         return formatter.string(from: currentMonth)
     }
     
@@ -346,19 +395,32 @@ struct DateButton: View {
     
     private let calendar = Calendar.current
     private let textGreen = Color(red: 0x21 / 255.0, green: 0x3C / 255.0, blue: 0x2E / 255.0)
+    private let defaultDayColor = Color(red: 0x3D / 255.0, green: 0x2F / 255.0, blue: 0x4B / 255.0)
     
     var body: some View {
         Button(action: action) {
             VStack(spacing: 0) {
                 Text("\(calendar.component(.day, from: date))")
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(isDisabled ? textGreen.opacity(0.3) : (isSelected ? textGreen : Color(red: 0x3D / 255.0, green: 0x2F / 255.0, blue: 0x4B / 255.0)))
+                    .foregroundColor(foregroundForDay)
             }
             .frame(width: 48, height: 56)
-            .background(isSelected ? textGreen.opacity(0.48) : Color.clear)
+            .background(backgroundForDay)
             .cornerRadius(4)
         }
         .disabled(isDisabled)
+    }
+
+    private var foregroundForDay: Color {
+        if isDisabled { return Color(red: 0.62, green: 0.62, blue: 0.64) }
+        if isSelected { return textGreen }
+        return defaultDayColor
+    }
+
+    private var backgroundForDay: Color {
+        if isDisabled { return Color.gray.opacity(0.14) }
+        if isSelected { return textGreen.opacity(0.48) }
+        return Color.clear
     }
 }
 
@@ -378,5 +440,8 @@ struct DateButton: View {
             ),
             activity: nil
         )
+        .environmentObject(LanguageManager())
+        .environmentObject(ReservationStore())
+        .environmentObject(InvitationStore())
     }
 }

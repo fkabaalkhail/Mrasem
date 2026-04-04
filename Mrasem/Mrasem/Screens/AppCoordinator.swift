@@ -3,6 +3,8 @@ import SwiftUI
 /// Main app coordinator handling screen navigation and transitions
 struct AppCoordinator: View {
     @StateObject private var languageManager = LanguageManager()
+    @StateObject private var reservationStore = ReservationStore()
+    @StateObject private var invitationStore = InvitationStore()
     @State private var currentScreen: AppScreen = .splash
     @State private var nextScreen: AppScreen? = nil
     @State private var slideOffset: CGFloat = 0
@@ -33,6 +35,8 @@ struct AppCoordinator: View {
         }
         .ignoresSafeArea()
         .environmentObject(languageManager)
+        .environmentObject(reservationStore)
+        .environmentObject(invitationStore)
     }
     
     @ViewBuilder
@@ -42,6 +46,7 @@ struct AppCoordinator: View {
             case .splash:
                 SplashScreenView()
                     .onAppear {
+                        StorePrefetch.warmAll()
                         if currentScreen == .splash {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
                                 transitionToScreen(.onboarding, screenWidth: geometry.size.width)

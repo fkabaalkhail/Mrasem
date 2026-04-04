@@ -55,6 +55,9 @@ node_modules/
 npm-debug.log
 yarn-error.log
 
+# Figma MCP pipeline (saved context dumps; optional to commit)
+.figma-cache/
+
 # Misc
 *.log
 *.tmp

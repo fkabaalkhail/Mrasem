@@ -4,6 +4,18 @@ struct OnboardingView: View {
     var onSkip: (() -> Void)? = nil
     var onNext: (() -> Void)? = nil
     @EnvironmentObject private var languageManager: LanguageManager
+
+    private var languageToggleTitle: String {
+        languageManager.current == .english ? "عربي" : "ENG"
+    }
+
+    private var skipTitle: String {
+        languageManager.current == .arabic ? "تخطي" : "Skip"
+    }
+
+    private var nextTitle: String {
+        languageManager.current == .arabic ? "التالي" : "Next"
+    }
     
     var body: some View {
         ZStack {
@@ -13,22 +25,32 @@ struct OnboardingView: View {
                 .aspectRatio(contentMode: .fill)
                 .ignoresSafeArea()
             
-            // Dark overlay
-            Color.black.opacity(0.3)
+            // Figma: rgba(0,0,0,0.59) over photo
+            Color.black.opacity(0.59)
                 .ignoresSafeArea()
             
             VStack {
                 HStack {
-                    Spacer()
-                    Button(action: {
-                        languageManager.toggle()
-                    }) {
-                        Text(languageManager.current == .english ? "عربي" : "English")
-                            .font(.custom("ExpoArabic-Medium", size: 14))
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white)
+                    if languageManager.current == .arabic {
+                        Button(action: { languageManager.toggle() }) {
+                            Text(languageToggleTitle)
+                                .font(.custom("ExpoArabic-Medium", size: 14))
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .frame(width: 72, alignment: .leading)
+                        }
+                        .padding(.leading, 21)
+                        Spacer()
+                    } else {
+                        Spacer()
+                        Button(action: { languageManager.toggle() }) {
+                            Text(languageToggleTitle)
+                                .font(.custom("ExpoArabic-Medium", size: 14))
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                        }
+                        .padding(.trailing, 17)
                     }
-                    .padding(.trailing, 17)
                 }
                 .padding(.top, 56)
                 
@@ -48,6 +70,7 @@ struct OnboardingView: View {
                             .fontWeight(.medium)
                             .foregroundColor(.white)
                             .multilineTextAlignment(.center)
+                            .environment(\.layoutDirection, languageManager.current == .arabic ? .rightToLeft : .leftToRight)
                             .frame(width: 297)
                             .fixedSize(horizontal: false, vertical: true)
                             .lineSpacing(24 * 0.216) // line-height: 1.216
@@ -61,6 +84,7 @@ struct OnboardingView: View {
                             .fontWeight(.medium)
                             .foregroundColor(.white)
                             .multilineTextAlignment(.center)
+                            .environment(\.layoutDirection, languageManager.current == .arabic ? .rightToLeft : .leftToRight)
                             .frame(width: 285)
                             .fixedSize(horizontal: false, vertical: true)
                             .lineSpacing(16 * 0.216) // line-height: 1.216
@@ -87,9 +111,9 @@ struct OnboardingView: View {
                         // Skip/Next buttons - 271px from brown box top (771px - 500px = 271px)
                         HStack(spacing: 0) {
                             Button(action: { onSkip?() }) {
-                            Text("Skip")
-                                .font(.custom("ExpoArabic-Medium", size: 14))
-                                .fontWeight(.medium)
+                                Text(skipTitle)
+                                    .font(.custom("ExpoArabic-Medium", size: 14))
+                                    .fontWeight(.medium)
                                     .foregroundColor(.white)
                                     .frame(width: 72, alignment: .leading)
                             }
@@ -97,13 +121,14 @@ struct OnboardingView: View {
                             Spacer()
                             
                             Button(action: { onNext?() }) {
-                            Text("Next")
-                                .font(.custom("ExpoArabic-Medium", size: 14))
-                                .fontWeight(.medium)
+                                Text(nextTitle)
+                                    .font(.custom("ExpoArabic-Medium", size: 14))
+                                    .fontWeight(.medium)
                                     .foregroundColor(.white)
                                     .frame(width: 72, alignment: .trailing)
                             }
                         }
+                        .environment(\.layoutDirection, .leftToRight)
                         .padding(.horizontal, 39)
                         .padding(.bottom, 37)
                     }
@@ -122,4 +147,5 @@ struct OnboardingView: View {
 
 #Preview {
     OnboardingView()
+        .environmentObject(LanguageManager())
 }

@@ -6,43 +6,46 @@ struct MembershipLoginView: View {
     @State private var membershipNumber: String = ""
     @State private var rememberMe: Bool = false
 
+    private let brandBrown = Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0)
+    private let textGreen = Color(red: 0x21 / 255.0, green: 0x3C / 255.0, blue: 0x2E / 255.0)
+
     var body: some View {
         ZStack {
-            Color.white
-                .ignoresSafeArea()
-            
+            brandBrown.ignoresSafeArea()
+
             VStack(spacing: 0) {
                 Text(languageManager.current == .arabic ? "تسجيل الدخول" : "Login")
                     .font(.custom("ExpoArabic-Medium", size: 20))
                     .fontWeight(.medium)
-                    .foregroundColor(.black)
+                    .foregroundColor(.white)
                     .padding(.top, 70)
-                
+
+                // White sheet
                 ZStack(alignment: .top) {
-                    Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0)
+                    Color.white
                         .clipShape(RoundedCorner(radius: 50, corners: [.topLeft, .topRight]))
-                    
+
                     VStack(spacing: 0) {
                         MembershipCardIcon()
                             .frame(width: 148, height: 177)
                             .padding(.top, 34)
-                        
+
                         Text(languageManager.current == .arabic ? "أدخل رقم العضوية" : "Enter your Membership Number")
                             .font(.custom("ExpoArabic-Medium", size: 16))
                             .fontWeight(.medium)
-                            .foregroundColor(.white)
+                            .foregroundColor(brandBrown)
                             .multilineTextAlignment(.center)
                             .frame(width: 297)
                             .padding(.top, 33)
-                        
+
                         VStack(alignment: .leading, spacing: 0) {
                             Text(languageManager.current == .arabic ? "رقم العضوية" : "Membership Number")
                                 .font(.custom("ExpoArabic-Medium", size: 14))
                                 .fontWeight(.medium)
-                                .foregroundColor(.white)
+                                .foregroundColor(brandBrown)
                                 .padding(.bottom, 13)
                                 .frame(maxWidth: .infinity, alignment: languageManager.current == .arabic ? .trailing : .leading)
-                            
+
                             TextField("", text: $membershipNumber)
                                 .font(.custom("ExpoArabic-Medium", size: 14))
                                 .fontWeight(.medium)
@@ -50,70 +53,65 @@ struct MembershipLoginView: View {
                                 .frame(height: 48)
                                 .padding(.horizontal, 10)
                                 .background(Color.white)
+                                .overlay(RoundedRectangle(cornerRadius: 7).stroke(brandBrown, lineWidth: 1))
                                 .cornerRadius(7)
                                 .keyboardType(.numberPad)
                                 .frame(maxWidth: .infinity, alignment: languageManager.current == .arabic ? .trailing : .leading)
                         }
-                        // Match Figma fixed width then align within screen
                         .frame(width: 285, alignment: languageManager.current == .arabic ? .trailing : .leading)
                         .frame(maxWidth: .infinity, alignment: languageManager.current == .arabic ? .trailing : .leading)
                         .padding(.horizontal, 44)
                         .padding(.top, 86)
-                        
+
                         HStack(spacing: 6) {
-                            Button(action: {
-                                rememberMe.toggle()
-                            }) {
+                            Button(action: { rememberMe.toggle() }) {
                                 ZStack {
                                     RoundedRectangle(cornerRadius: 5)
-                                        .stroke(Color.white, lineWidth: 1)
+                                        .stroke(brandBrown, lineWidth: 1)
                                         .frame(width: 18, height: 18)
-                                    
                                     if rememberMe {
                                         Image(systemName: "checkmark")
                                             .font(.system(size: 12, weight: .bold))
-                                            .foregroundColor(.white)
+                                            .foregroundColor(brandBrown)
                                     }
                                 }
                             }
-                            
                             Text(languageManager.current == .arabic ? "تذكرني" : "Remember Me")
                                 .font(.custom("ExpoArabic-Medium", size: 12))
                                 .fontWeight(.medium)
-                                .foregroundColor(.white)
+                                .foregroundColor(textGreen)
                         }
                         .frame(maxWidth: .infinity, alignment: languageManager.current == .arabic ? .trailing : .leading)
                         .padding(.horizontal, 44)
                         .padding(.top, 16)
-                        
-                        Button(action: {
-                            dismiss()
-                        }) {
+
+                        // Login with Phone Number — brown bg, white text
+                        Button(action: { dismiss() }) {
                             Text(languageManager.current == .arabic ? "تسجيل الدخول برقم الجوال" : "Login with Phone Number")
                                 .font(.custom("ExpoArabic-Medium", size: 16))
                                 .fontWeight(.medium)
-                                .foregroundColor(.black)
+                                .foregroundColor(.white)
                                 .frame(width: 287, height: 56)
-                                .background(Color.white)
+                                .background(brandBrown)
                                 .cornerRadius(13)
                         }
                         .padding(.top, 106)
-                        
+
+                        // Next + FaceID — brown bg, white text
                         HStack(spacing: 18) {
-                            NavigationLink(destination: CategorySelectionView().environmentObject(languageManager)) {
+                            NavigationLink(destination: OTPVerificationView(phoneNumber: "").environmentObject(languageManager)) {
                                 Text(languageManager.current == .arabic ? "التالي" : "Next")
                                     .font(.custom("ExpoArabic-Medium", size: 16))
                                     .fontWeight(.medium)
-                                    .foregroundColor(.black)
+                                    .foregroundColor(.white)
                                     .frame(width: 205, height: 56)
-                                    .background(Color.white)
+                                    .background(brandBrown)
                                     .cornerRadius(13)
                             }
 
                             Button(action: {}) {
                                 ZStack {
                                     Color.white
-
                                     FaceIDIcon()
                                         .frame(width: 39, height: 39)
                                 }
@@ -122,7 +120,7 @@ struct MembershipLoginView: View {
                             }
                         }
                         .padding(.top, 15)
-                        
+
                         Spacer()
                     }
                 }
@@ -194,7 +192,7 @@ struct MembershipCardIcon: View {
                 path.addCurve(to: CGPoint(x: 11.0814, y: 83.0866), control1: CGPoint(x: 5.53608, y: 85.5749), control2: CGPoint(x: 8.02439, y: 83.0866))
                 path.closeSubpath()
             }
-            .fill(Color.white)
+            .fill(Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0))
             
             Path { path in
                 path.move(to: CGPoint(x: 38.1984, y: 152.243))
@@ -206,7 +204,7 @@ struct MembershipCardIcon: View {
                 path.addCurve(to: CGPoint(x: 38.1984, y: 152.243), control1: CGPoint(x: 40.9223, y: 154.284), control2: CGPoint(x: 40.6367, y: 153.587))
                 path.closeSubpath()
             }
-            .fill(Color.white)
+            .fill(Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0))
             
             Path { path in
                 path.move(to: CGPoint(x: 62.5192, y: 85.6067))
@@ -245,7 +243,7 @@ struct MembershipCardIcon: View {
                 path.addLine(to: CGPoint(x: 69.0325, y: 77.7152))
                 path.closeSubpath()
             }
-            .fill(Color.white)
+            .fill(Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0))
             
             Path { path in
                 path.move(to: CGPoint(x: 71.3327, y: 2.72393))
@@ -257,7 +255,7 @@ struct MembershipCardIcon: View {
                 path.addCurve(to: CGPoint(x: 71.3327, y: 2.72393), control1: CGPoint(x: 73.374, y: 0), control2: CGPoint(x: 72.6766, y: 0.285604))
                 path.closeSubpath()
             }
-            .fill(Color.white)
+            .fill(Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0))
             
             Path { path in
                 path.move(to: CGPoint(x: 119.236, y: 13.5201))
@@ -269,7 +267,7 @@ struct MembershipCardIcon: View {
                 path.addCurve(to: CGPoint(x: 119.236, y: 13.5201), control1: CGPoint(x: 121.654, y: 11.6872), control2: CGPoint(x: 119.971, y: 12.1794))
                 path.closeSubpath()
             }
-            .fill(Color.white)
+            .fill(Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0))
             
             Path { path in
                 path.move(to: CGPoint(x: 24.4292, y: 13.0322))
@@ -281,7 +279,7 @@ struct MembershipCardIcon: View {
                 path.addCurve(to: CGPoint(x: 24.4292, y: 13.0322), control1: CGPoint(x: 27.4497, y: 12.759), control2: CGPoint(x: 25.7643, y: 12.286))
                 path.closeSubpath()
             }
-            .fill(Color.white)
+            .fill(Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0))
         }
     }
 }

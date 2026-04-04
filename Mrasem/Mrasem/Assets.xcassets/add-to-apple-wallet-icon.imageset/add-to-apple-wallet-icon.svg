@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 22" fill="none">
+  <!-- Pass stack (back) -->
+  <rect x="2" y="6" width="24" height="14" rx="2.5" fill="#31231B" opacity="0.35"/>
+  <!-- Pass stack (front), wallet-style boarding pass -->
+  <rect x="2" y="2" width="24" height="14" rx="2.5" fill="#31231B"/>
+  <rect x="6" y="6.5" width="16" height="2.2" rx="1" fill="#FFFFFF" opacity="0.22"/>
+  <circle cx="8" cy="11.5" r="1.6" fill="#FFFFFF" opacity="0.35"/>
+  <rect x="11" y="10.4" width="11" height="2.2" rx="1" fill="#FFFFFF" opacity="0.35"/>
+</svg>
