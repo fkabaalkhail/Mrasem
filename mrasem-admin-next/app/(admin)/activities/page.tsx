@@ -81,7 +81,7 @@ export default function ActivitiesPage() {
                     {previewSrc ? (
                       <div className="w-20 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={previewSrc} alt={r.name} className="aspect-[10/7] h-auto w-full object-cover" />
+                        <img src={previewSrc} alt={r.name} loading="lazy" className="aspect-[10/7] h-auto w-full object-cover" />
                       </div>
                     ) : (
                       <span className="text-xs text-gray-400">No image</span>

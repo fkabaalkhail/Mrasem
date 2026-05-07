@@ -85,6 +85,7 @@ export default function RestaurantsPage() {
                           <img
                             src={previewSrc}
                             alt={r.name}
+                            loading="lazy"
                             className="aspect-[10/7] h-auto w-full object-cover"
                           />
                         </div>
