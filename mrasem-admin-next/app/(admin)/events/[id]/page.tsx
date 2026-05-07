@@ -96,6 +96,8 @@ export default function EditEventPage() {
           folder="season-events"
           value={form.image_name ?? ""}
           onChange={(url) => setForm({ ...form, image_name: url })}
+          recommendedSize="1420 x 1000 px"
+          recommendedRatio="10:7"
         />
         <hr className="my-2" />
         <p className="text-sm font-semibold text-gray-500">Arabic fields</p>

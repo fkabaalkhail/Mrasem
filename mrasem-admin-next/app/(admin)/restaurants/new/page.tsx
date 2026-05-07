@@ -115,6 +115,8 @@ export default function NewRestaurantPage() {
           folder="restaurants"
           value={form.image_name}
           onChange={(url) => setForm({ ...form, image_name: url })}
+          recommendedSize="1420 x 1000 px"
+          recommendedRatio="10:7"
         />
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
