@@ -25,7 +25,7 @@ function LoginForm() {
     });
     setLoading(false);
     if (signErr) {
-      setError(signErr.message);
+      setError("Invalid email or password. Please try again.");
       return;
     }
     router.push(next);
@@ -40,7 +40,7 @@ function LoginForm() {
       <div className="w-full max-w-md rounded-2xl border border-black/10 bg-mrasem-white p-8 shadow-xl shadow-black/20">
         <h2 className="text-lg font-semibold text-mrasem-preiwinki">Sign in</h2>
         <p className="mt-1 text-sm text-neutral-500">
-          Use your Supabase admin email and password
+          Enter your admin credentials to continue
         </p>
         <form onSubmit={(e) => void onSubmit(e)} className="mt-6 space-y-4">
           <div>

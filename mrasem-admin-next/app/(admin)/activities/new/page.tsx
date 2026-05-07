@@ -28,6 +28,11 @@ export default function NewActivityPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
+    if (!form.name.trim() || !form.arabic_name.trim() || !form.city.trim() || !form.category.trim()) {
+      setError("Please fill in all required fields.");
+      return;
+    }
     setSaving(true);
     const sb = createClient();
     const { error: insErr } = await sb.from("activities").insert({

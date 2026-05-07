@@ -25,6 +25,11 @@ export default function NewEventPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
+    if (!form.name.trim() || !form.arabic_name.trim() || !form.city.trim()) {
+      setError("Please fill in all required fields.");
+      return;
+    }
     setSaving(true);
     const sb = createClient();
     const { error: insErr } = await sb.from("season_events").insert({

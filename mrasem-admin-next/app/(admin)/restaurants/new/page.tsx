@@ -29,6 +29,10 @@ export default function NewRestaurantPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!form.name.trim() || !form.arabic_name.trim() || !form.city.trim() || !form.cuisine.trim()) {
+      setError("Please fill in all required fields.");
+      return;
+    }
     setSaving(true);
     const sb = createClient();
     const { error: insErr } = await sb.from("restaurants").insert({
