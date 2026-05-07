@@ -3,16 +3,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { SearchBar } from "@/components/SearchBar";
+import { useLang } from "@/lib/lang";
 import type { Booking } from "@/lib/types";
 
 function statusBadge(status: string) {
-  const base = "rounded-full px-2.5 py-0.5 text-xs font-medium";
-  if (status === "approved") return `${base} bg-emerald-100 text-emerald-800`;
-  if (status === "rejected") return `${base} bg-red-100 text-red-800`;
-  return `${base} bg-amber-100 text-amber-900`;
+  const base = "inline-block rounded-full px-4 py-1.5 text-xs font-semibold";
+  if (status === "approved") return `${base} bg-[#d4edda] text-[#1b5e37]`;
+  if (status === "rejected") return `${base} bg-[#f8d7da] text-[#842029]`;
+  return `${base} bg-[#fff3cd] text-[#664d03]`;
 }
 
 export default function BookingsPage() {
+  const { t } = useLang();
   const [rows, setRows] = useState<Booking[]>([]);
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -55,34 +57,34 @@ export default function BookingsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-mrasem-preiwinki">Bookings</h1>
-      <p className="mt-1 text-sm text-gray-600">Approve or reject reservation requests</p>
+      <h1 className="text-2xl font-semibold text-mrasem-preiwinki">{t("Bookings", "الحجوزات")}</h1>
+      <p className="mt-1 text-sm text-gray-600">{t("Approve or reject reservation requests", "قبول أو رفض طلبات الحجز")}</p>
       <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center">
-        <SearchBar value={q} onChange={setQ} placeholder="Search title, phone, ticket…" />
+        <SearchBar value={q} onChange={setQ} placeholder={t("Search title, phone, ticket…", "بحث بالعنوان، الهاتف، التذكرة…")} />
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
         >
-          <option value="">All statuses</option>
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
+          <option value="">{t("All statuses", "جميع الحالات")}</option>
+          <option value="pending">{t("Pending", "قيد الانتظار")}</option>
+          <option value="approved">{t("Approved", "مقبول")}</option>
+          <option value="rejected">{t("Rejected", "مرفوض")}</option>
         </select>
       </div>
       <div className="mt-4 overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
         {loading ? (
-          <p className="p-6 text-sm text-gray-500">Loading…</p>
+          <p className="p-6 text-sm text-gray-500">{t("Loading…", "جاري التحميل…")}</p>
         ) : (
           <table className="min-w-full text-left text-sm">
             <thead className="border-b border-gray-100 bg-gray-50/80">
               <tr>
                 <th className="px-4 py-3 font-medium text-gray-600">ID</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Phone</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Place</th>
-                <th className="px-4 py-3 font-medium text-gray-600">When</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Status</th>
-                <th className="px-4 py-3 font-medium text-gray-600">Actions</th>
+                <th className="px-4 py-3 font-medium text-gray-600">{t("Phone", "الهاتف")}</th>
+                <th className="px-4 py-3 font-medium text-gray-600">{t("Place", "المكان")}</th>
+                <th className="px-4 py-3 font-medium text-gray-600">{t("When", "الموعد")}</th>
+                <th className="px-4 py-3 font-medium text-gray-600">{t("Status", "الحالة")}</th>
+                <th className="px-4 py-3 font-medium text-gray-600">{t("Actions", "إجراءات")}</th>
               </tr>
             </thead>
             <tbody>
@@ -100,7 +102,9 @@ export default function BookingsPage() {
                     {b.date_display} {b.time_display}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={statusBadge(b.status)}>{b.status}</span>
+                    <span className={statusBadge(b.status)}>
+                      {b.status === "approved" ? t("Approved", "مقبولة") : b.status === "rejected" ? t("Rejected", "مرفوضة") : t("Pending", "قيد الانتظار")}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
@@ -111,14 +115,14 @@ export default function BookingsPage() {
                             onClick={() => void setStatus(b.id, "approved")}
                             className="rounded-lg bg-mrasem-awaki px-3 py-1 text-xs font-medium text-white"
                           >
-                            Approve
+                            {t("Approve", "قبول")}
                           </button>
                           <button
                             type="button"
                             onClick={() => void setStatus(b.id, "rejected")}
                             className="rounded-lg border border-red-200 px-3 py-1 text-xs font-medium text-red-800"
                           >
-                            Reject
+                            {t("Reject", "رفض")}
                           </button>
                         </>
                       )}
