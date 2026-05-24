@@ -22,6 +22,8 @@ final class InvitationDraft: ObservableObject {
     @Published var note: String = ""
     @Published var eventDate: Date = Calendar.current.startOfDay(for: Date())
     @Published var timeDisplay: String = "7:10PM"
+    /// JPEG/PNG data for “Other” venue photo (Figma 1063:5363); summary + send use `imageName` fallback for API.
+    @Published var customPlacePhotoData: Data?
 }
 
 enum InvitationPlaceCategory: String, CaseIterable, Identifiable {
@@ -29,6 +31,7 @@ enum InvitationPlaceCategory: String, CaseIterable, Identifiable {
     case activities = "Activities"
     case seasonEvents = "Season events"
     case cars = "Car service"
+    case other = "Other"
     var id: String { rawValue }
 }
 
@@ -49,6 +52,7 @@ private let invitationPlaceCatalog: [InvitationPlaceOption] = [
     InvitationPlaceOption(id: "scuba", title: "Scuba Diving", subtitle: "Free Diving", imageName: "activity-scuba", branch: "Jeddah, Red Sea", category: .activities),
     InvitationPlaceOption(id: "winter", title: "Winter Wonderland", subtitle: "Seasonal Attraction", imageName: "season-winter-wonderland", branch: "Jeddah", category: .seasonEvents),
     InvitationPlaceOption(id: "tahoe", title: "Chevrolet Tahoe", subtitle: "Standard · 7 passengers", imageName: "car-tahoe", branch: "Airport pickup", category: .cars),
+    InvitationPlaceOption(id: "other", title: "Other", subtitle: "Custom venue", imageName: "mrasem-logo", branch: "Add details in next step", category: .other),
 ]
 
 // MARK: - Choose contact (Figma 1202:7974)
@@ -79,6 +83,13 @@ struct InvitationChooseContactView: View {
         }
     }
 
+    private var emptyContactsHint: String {
+        if #available(iOS 18.0, *), authStatus == .limited {
+            return "Limited access is on, but none of the contacts you shared include a phone number—or none were selected. Settings → Mrasem → Contacts to adjust. You can also use Enter phone manually."
+        }
+        return "No contacts with a phone number. Add a number in Contacts or use “Enter phone manually”."
+    }
+
     var body: some View {
         ZStack(alignment: .top) {
             pageBg.ignoresSafeArea()
@@ -89,14 +100,11 @@ struct InvitationChooseContactView: View {
                     .padding(.horizontal, 21)
 
                 Group {
-                    switch authStatus {
-                    case .authorized:
+                    if contactsAccessAllowsListing(authStatus) {
                         contactList
-                    case .denied, .restricted:
+                    } else if authStatus == .denied || authStatus == .restricted {
                         contactsDeniedView
-                    case .notDetermined:
-                        requestAccessView
-                    @unknown default:
+                    } else {
                         requestAccessView
                     }
                 }
@@ -107,6 +115,9 @@ struct InvitationChooseContactView: View {
         .navigationBarHidden(true)
         .task {
             await refreshAuthAndLoad()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            Task { await refreshAuthAndLoad() }
         }
         .sheet(isPresented: $showShareSheet) {
             Group {
@@ -136,6 +147,13 @@ struct InvitationChooseContactView: View {
             LazyVStack(spacing: 10) {
                 if isLoading {
                     ProgressView().padding(.top, 40)
+                } else if filtered.isEmpty {
+                    Text(emptyContactsHint)
+                        .font(.custom("ExpoArabic-Medium", size: 15))
+                        .foregroundColor(textGreen.opacity(0.55))
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 48)
+                        .padding(.horizontal, 36)
                 } else {
                     ForEach(filtered) { row in
                         contactRow(row)
@@ -148,11 +166,20 @@ struct InvitationChooseContactView: View {
         }
     }
 
+    /// iOS 18+ “Limited” access still allows `enumerateContacts` for the subset the user shared.
+    private func contactsAccessAllowsListing(_ status: CNAuthorizationStatus) -> Bool {
+        if status == .authorized { return true }
+        if #available(iOS 18.0, *) {
+            return status == .limited
+        }
+        return false
+    }
+
     private func contactRow(_ row: InviteContactRow) -> some View {
         let member = invitationStore.isMrasemMember(phone: row.normalizedE164)
         return ZStack(alignment: .trailing) {
             NavigationLink {
-                InvitationChoosePlaceView(selectedContact: row)
+                InvitationChooseDateView(selectedContact: row)
             } label: {
                 HStack(spacing: 12) {
                     ZStack {
@@ -243,7 +270,7 @@ struct InvitationChooseContactView: View {
 
     private func refreshAuthAndLoad() async {
         authStatus = CNContactStore.authorizationStatus(for: .contacts)
-        if authStatus == .authorized {
+        if contactsAccessAllowsListing(authStatus) {
             await loadContacts()
         }
     }
@@ -253,9 +280,9 @@ struct InvitationChooseContactView: View {
         do {
             let granted = try await store.requestAccess(for: .contacts)
             await MainActor.run {
-                authStatus = granted ? .authorized : CNContactStore.authorizationStatus(for: .contacts)
+                authStatus = CNContactStore.authorizationStatus(for: .contacts)
             }
-            if granted {
+            if contactsAccessAllowsListing(authStatus) {
                 await loadContacts()
             }
         } catch {
@@ -267,9 +294,10 @@ struct InvitationChooseContactView: View {
 
     private func loadContacts() async {
         await MainActor.run { isLoading = true }
-        let rows = await Task.detached(priority: .userInitiated) {
+        // `CNContactStore.enumerateContacts` must run on the main thread after authorization; background use often yields 0 rows or errors.
+        let rows = await MainActor.run {
             InviteContactLoader.fetch()
-        }.value
+        }
         await MainActor.run {
             contacts = rows
             isLoading = false
@@ -344,10 +372,11 @@ private struct InvitationManualPhoneView: View {
                 .cornerRadius(8)
 
             NavigationLink {
-                InvitationChoosePlaceView(selectedContact: InviteContactRow(
+                InvitationChooseDateView(selectedContact: InviteContactRow(
                     id: "manual",
                     givenName: "",
                     familyName: "",
+                    organizationName: "",
                     phoneFormatted: phone,
                     normalizedE164: InvitationStore.normalizePhone(phone)
                 ))
@@ -374,12 +403,10 @@ private struct InvitationManualPhoneView: View {
 
 struct InvitationChoosePlaceView: View {
     @Environment(\.dismiss) private var dismiss
-    let selectedContact: InviteContactRow
     @EnvironmentObject private var draft: InvitationDraft
 
     @State private var showCategoryMenu = false
     @State private var showPlacePicker = false
-    @State private var photoItem: PhotosPickerItem? // Reserved for future attachment upload
 
     private let brandBrown = Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0)
     private let textGreen = Color(red: 0x21 / 255.0, green: 0x3C / 255.0, blue: 0x2E / 255.0)
@@ -459,29 +486,12 @@ struct InvitationChoosePlaceView: View {
                             .padding(.horizontal, 17)
                             .padding(.top, 8)
 
-                        Text("Insert photo")
-                            .font(.custom("ExpoArabic-Medium", size: 16))
-                            .foregroundColor(labelColor)
-                            .padding(.top, 20)
-                            .padding(.leading, 21)
-
-                        PhotosPicker(selection: $photoItem, matching: .images) {
-                            HStack {
-                                Image(systemName: "camera")
-                                    .foregroundColor(textGreen.opacity(0.4))
-                                Text("Insert photo")
-                                    .font(.custom("ExpoArabic-Light", size: 14))
-                                    .foregroundColor(textGreen.opacity(0.27))
-                                Spacer()
-                            }
-                            .padding(12)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(brandBrown, lineWidth: 1.5))
-                        }
-                        .padding(.horizontal, 17)
-                        .padding(.top, 8)
-
                         NavigationLink {
-                            InvitationChooseDateView()
+                            if draft.category == .other {
+                                InvitationCustomPlaceView()
+                            } else {
+                                InvitationDetailsSummaryView()
+                            }
                         } label: {
                             Text("Next")
                                 .font(.custom("ExpoArabic-Medium", size: 22))
@@ -500,10 +510,6 @@ struct InvitationChoosePlaceView: View {
             }
         }
         .navigationBarHidden(true)
-        .onAppear {
-            draft.recipientPhone = selectedContact.normalizedE164
-            draft.recipientDisplayName = selectedContact.displayName
-        }
         .confirmationDialog("Category", isPresented: $showCategoryMenu) {
             ForEach(InvitationPlaceCategory.allCases) { cat in
                 Button(cat.rawValue) { draft.category = cat; pickFirstPlaceInCategory() }
@@ -544,6 +550,9 @@ struct InvitationChoosePlaceView: View {
         draft.subtitle = opt.subtitle
         draft.imageName = opt.imageName
         draft.branch = opt.branch
+        if opt.category != .other {
+            draft.customPlacePhotoData = nil
+        }
     }
 
     private func placeHeader(title: String) -> some View {
@@ -568,10 +577,167 @@ struct InvitationChoosePlaceView: View {
     }
 }
 
-// MARK: - Choose date (Figma 1202:8376)
+// MARK: - Custom “Other” venue (Figma 1063:5363) — after place step when category is Other
+
+struct InvitationCustomPlaceView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var draft: InvitationDraft
+    @State private var photoItem: PhotosPickerItem?
+
+    private let brandBrown = Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0)
+    private let textGreen = Color(red: 0x21 / 255.0, green: 0x3C / 255.0, blue: 0x2E / 255.0)
+    private let labelColor = Color(red: 0x21 / 255.0, green: 0x3C / 255.0, blue: 0x2E / 255.0).opacity(0.84)
+
+    var body: some View {
+        ZStack {
+            Color.white.ignoresSafeArea()
+            VStack(spacing: 0) {
+                customHeader(title: "Place details")
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Venue name")
+                            .font(.custom("ExpoArabic-Medium", size: 16))
+                            .foregroundColor(labelColor)
+                            .padding(.top, 24)
+                            .padding(.leading, 21)
+                        TextField("Name", text: $draft.placeTitle)
+                            .font(.custom("ExpoArabic-Light", size: 14))
+                            .foregroundColor(textGreen)
+                            .padding(12)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(brandBrown, lineWidth: 1.5))
+                            .padding(.horizontal, 18)
+                            .padding(.top, 8)
+
+                        Text("Subtitle (optional)")
+                            .font(.custom("ExpoArabic-Medium", size: 16))
+                            .foregroundColor(labelColor)
+                            .padding(.top, 20)
+                            .padding(.leading, 21)
+                        TextField("Cuisine / type", text: $draft.subtitle)
+                            .font(.custom("ExpoArabic-Light", size: 14))
+                            .foregroundColor(textGreen)
+                            .padding(12)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(brandBrown, lineWidth: 1.5))
+                            .padding(.horizontal, 18)
+                            .padding(.top, 8)
+
+                        Text("Location")
+                            .font(.custom("ExpoArabic-Medium", size: 16))
+                            .foregroundColor(labelColor)
+                            .padding(.top, 20)
+                            .padding(.leading, 21)
+                        TextField("Address or area", text: $draft.branch)
+                            .font(.custom("ExpoArabic-Light", size: 14))
+                            .foregroundColor(textGreen)
+                            .padding(12)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(brandBrown, lineWidth: 1.5))
+                            .padding(.horizontal, 18)
+                            .padding(.top, 8)
+
+                        Text("Note (optional)")
+                            .font(.custom("ExpoArabic-Medium", size: 16))
+                            .foregroundColor(labelColor)
+                            .padding(.top, 20)
+                            .padding(.leading, 21)
+                        TextField("Add Note", text: $draft.note, axis: .vertical)
+                            .lineLimit(3...6)
+                            .font(.custom("ExpoArabic-Light", size: 14))
+                            .foregroundColor(textGreen)
+                            .padding(12)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(brandBrown, lineWidth: 1.5))
+                            .padding(.horizontal, 17)
+                            .padding(.top, 8)
+
+                        Text("Photo")
+                            .font(.custom("ExpoArabic-Medium", size: 16))
+                            .foregroundColor(labelColor)
+                            .padding(.top, 20)
+                            .padding(.leading, 21)
+                        PhotosPicker(selection: $photoItem, matching: .images) {
+                            HStack {
+                                Image(systemName: "camera")
+                                    .foregroundColor(textGreen.opacity(0.4))
+                                Text(draft.customPlacePhotoData == nil ? "Insert photo" : "Change photo")
+                                    .font(.custom("ExpoArabic-Light", size: 14))
+                                    .foregroundColor(textGreen.opacity(draft.customPlacePhotoData == nil ? 0.27 : 1))
+                                Spacer()
+                            }
+                            .padding(12)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(brandBrown, lineWidth: 1.5))
+                        }
+                        .padding(.horizontal, 17)
+                        .padding(.top, 8)
+                        .onChange(of: photoItem) { _, item in
+                            guard let item else { return }
+                            Task {
+                                guard let raw = try? await item.loadTransferable(type: Data.self) else { return }
+                                let stored: Data
+                                if let ui = UIImage(data: raw), let jpeg = ui.jpegData(compressionQuality: 0.88) {
+                                    stored = jpeg
+                                } else {
+                                    stored = raw
+                                }
+                                await MainActor.run {
+                                    draft.customPlacePhotoData = stored
+                                    draft.imageName = "mrasem-logo"
+                                }
+                            }
+                        }
+
+                        NavigationLink {
+                            InvitationDetailsSummaryView()
+                        } label: {
+                            Text("Next")
+                                .font(.custom("ExpoArabic-Medium", size: 22))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 56)
+                                .background(brandBrown)
+                                .cornerRadius(13)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 28)
+                        .padding(.top, 36)
+                        .padding(.bottom, 40)
+                    }
+                }
+            }
+        }
+        .navigationBarHidden(true)
+        .onAppear {
+            if draft.placeTitle == "Other" {
+                draft.placeTitle = ""
+            }
+        }
+    }
+
+    private func customHeader(title: String) -> some View {
+        ZStack(alignment: .bottomLeading) {
+            Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0)
+            VStack(alignment: .leading, spacing: 0) {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundColor(.white)
+                        .frame(width: 44, height: 44)
+                }
+                .padding(.leading, 4)
+                Text(title)
+                    .font(.custom("ExpoArabic-Medium", size: 20))
+                    .foregroundColor(.white)
+                    .padding(.leading, 21)
+                    .padding(.bottom, 18)
+            }
+        }
+        .frame(height: 132)
+    }
+}
+
+// MARK: - Choose date (Figma 1062:4736)
 
 struct InvitationChooseDateView: View {
     @Environment(\.dismiss) private var dismiss
+    let selectedContact: InviteContactRow
     @EnvironmentObject private var draft: InvitationDraft
     @State private var currentMonth: Date = Date()
     @State private var selectedDate: Date?
@@ -602,7 +768,7 @@ struct InvitationChooseDateView: View {
                         timeRow
                             .padding(.top, 12)
                         NavigationLink {
-                            InvitationDetailsSummaryView()
+                            InvitationChoosePlaceView()
                         } label: {
                             Text("Next")
                                 .font(.custom("ExpoArabic-Medium", size: 22))
@@ -622,6 +788,8 @@ struct InvitationChooseDateView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
+            draft.recipientPhone = selectedContact.normalizedE164
+            draft.recipientDisplayName = selectedContact.displayName
             if selectedDate == nil {
                 selectedDate = calendar.startOfDay(for: Date())
             }
@@ -869,15 +1037,23 @@ struct InvitationDetailsSummaryView: View {
 
     private var summaryCard: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Image(draft.imageName)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(maxWidth: .infinity)
-                .frame(height: 168)
-                .clipped()
-                .cornerRadius(7)
-                .padding(.top, 10)
-                .padding(.horizontal, 12)
+            Group {
+                if let data = draft.customPlacePhotoData, let uiImage = UIImage(data: data) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } else {
+                    Image(draft.imageName)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 168)
+            .clipped()
+            .cornerRadius(7)
+            .padding(.top, 10)
+            .padding(.horizontal, 12)
 
             Text(draft.placeTitle)
                 .font(.custom("ExpoArabic-Medium", size: 24))
@@ -943,12 +1119,16 @@ struct InviteContactRow: Identifiable, Hashable {
     let id: String
     let givenName: String
     let familyName: String
+    let organizationName: String
     let phoneFormatted: String
     let normalizedE164: String
 
     var displayName: String {
         let t = "\(givenName) \(familyName)".trimmingCharacters(in: .whitespaces)
-        return t.isEmpty ? phoneFormatted : t
+        if !t.isEmpty { return t }
+        let org = organizationName.trimmingCharacters(in: .whitespaces)
+        if !org.isEmpty { return org }
+        return phoneFormatted
     }
 
     var initial: String {
@@ -965,6 +1145,7 @@ enum InviteContactLoader {
         let keys: [CNKeyDescriptor] = [
             CNContactGivenNameKey as CNKeyDescriptor,
             CNContactFamilyNameKey as CNKeyDescriptor,
+            CNContactOrganizationNameKey as CNKeyDescriptor,
             CNContactPhoneNumbersKey as CNKeyDescriptor,
             CNContactIdentifierKey as CNKeyDescriptor,
         ]
@@ -974,23 +1155,61 @@ enum InviteContactLoader {
             try store.enumerateContacts(with: request) { contact, _ in
                 for labeled in contact.phoneNumbers {
                     let raw = labeled.value.stringValue
-                    let norm = InvitationStore.normalizePhone(raw)
-                    guard norm.count >= 10 else { continue }
+                    let sanitized = asciiDigits(from: raw)
+                    let norm = InvitationStore.normalizePhone(sanitized)
+                    let digitCount = sanitized.filter(\.isNumber).count
+                    guard digitCount >= 6, norm.count >= 8 else { continue }
                     let id = "\(contact.identifier)_\(norm)"
                     rows.append(InviteContactRow(
                         id: id,
                         givenName: contact.givenName,
                         familyName: contact.familyName,
+                        organizationName: contact.organizationName,
                         phoneFormatted: formatDisplayPhone(norm),
                         normalizedE164: norm
                     ))
                 }
             }
         } catch {
+            #if DEBUG
+            print("Mrasem InviteContactLoader: enumerateContacts failed — \(error)")
+            #endif
             return []
         }
         rows.sort { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
         return rows
+    }
+
+    /// Arabic / Persian numerals → ASCII so normalization sees real digits.
+    private static func asciiDigits(from string: String) -> String {
+        var out = ""
+        out.reserveCapacity(string.count)
+        for ch in string {
+            switch ch {
+            case "٠": out.append("0")
+            case "١": out.append("1")
+            case "٢": out.append("2")
+            case "٣": out.append("3")
+            case "٤": out.append("4")
+            case "٥": out.append("5")
+            case "٦": out.append("6")
+            case "٧": out.append("7")
+            case "٨": out.append("8")
+            case "٩": out.append("9")
+            case "۰": out.append("0")
+            case "۱": out.append("1")
+            case "۲": out.append("2")
+            case "۳": out.append("3")
+            case "۴": out.append("4")
+            case "۵": out.append("5")
+            case "۶": out.append("6")
+            case "۷": out.append("7")
+            case "۸": out.append("8")
+            case "۹": out.append("9")
+            default: out.append(ch)
+            }
+        }
+        return out
     }
 
     private static func formatDisplayPhone(_ e164: String) -> String {

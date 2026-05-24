@@ -6,8 +6,10 @@ struct SidePanelView: View {
     @EnvironmentObject private var languageManager: LanguageManager
 
     private let panelWidth: CGFloat = 237
-    /// Figma 1072:6207 — narrow strip for geometric watermark; menu content stays clear.
-    private let decorativeStripWidth: CGFloat = 46
+    /// Strip width: enough to contain rotated deco after clip (avoids bleed onto dimmed scrim).
+    private let decorativeStripWidth: CGFloat = 48
+    /// Menu / nav row tint (greyed vs. near-black body text).
+    private let menuItemColor = Color(hex: 0x6C7072)
 
     private var isArabic: Bool { languageManager.current == .arabic }
 
@@ -28,18 +30,18 @@ struct SidePanelView: View {
     }
 
     private var panelContent: some View {
-        // LTR HStack so "outer" strip is always physical left (EN) or physical right (AR).
+        // LTR HStack: EN (1071:6126) = main | strip → pattern on **physical right**; AR (1072:6207) = strip | main → pattern on **physical left**.
         HStack(spacing: 0) {
             if isArabic {
-                mainColumn
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 decorativeStrip
                     .frame(width: decorativeStripWidth)
+                mainColumn
+                    .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                decorativeStrip
-                    .frame(width: decorativeStripWidth)
                 mainColumn
                     .frame(maxWidth: .infinity, alignment: .leading)
+                decorativeStrip
+                    .frame(width: decorativeStripWidth)
             }
         }
         .environment(\.layoutDirection, .leftToRight)
@@ -52,13 +54,13 @@ struct SidePanelView: View {
         VStack(alignment: .leading, spacing: 0) {
             profileSection
                 .padding(.top, 54)
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 16)
 
             Rectangle()
                 .fill(Color(red: 0xE9 / 255, green: 0xE9 / 255, blue: 0xF2 / 255))
                 .frame(width: 170, height: 1)
-                .frame(maxWidth: .infinity, alignment: isArabic ? .center : .leading)
-                .padding(.horizontal, 20)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal, 16)
                 .padding(.top, 14)
 
             menuSection
@@ -67,7 +69,7 @@ struct SidePanelView: View {
             Spacer()
 
             logoutButton
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 16)
                 .padding(.bottom, 49)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -82,6 +84,7 @@ struct SidePanelView: View {
             decoPatternBlock(offset: 8)
             Spacer(minLength: 0)
         }
+        .frame(width: decorativeStripWidth, alignment: .center)
         .frame(maxHeight: .infinity)
         .padding(.top, 30)
         .padding(.bottom, 24)
@@ -89,9 +92,10 @@ struct SidePanelView: View {
     }
 
     private func decoPatternBlock(offset idx: Int) -> some View {
-        let size: CGFloat = 35
-        let smallW: CGFloat = 24
-        let smallH: CGFloat = 7
+        // Keep art within strip width after -90° rotation (was bleeding past panel edge).
+        let size: CGFloat = 38
+        let smallW: CGFloat = 26
+        let smallH: CGFloat = 8
         return VStack(spacing: 4) {
             softDecoImage("sp-deco-\(idx + 7)", w: size + 2, h: size)
             softDecoImage("sp-deco-\(idx + 6)", w: size, h: size)
@@ -132,25 +136,25 @@ struct SidePanelView: View {
     // MARK: - Profile (Figma 1072:6207)
 
     private var profileSection: some View {
-        VStack(alignment: isArabic ? .center : .leading, spacing: 0) {
+        VStack(alignment: .center, spacing: 0) {
             Image("side-panel-avatar")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 68, height: 68)
 
-            Text(isArabic ? "عبدالله خالد" : "Abdullah Khalid")
+            Text(isArabic ? "أهلاً" : "Welcome")
                 .font(.system(size: 16, weight: .bold))
                 .foregroundColor(Color(hex: 0x0F0F0F))
-                .multilineTextAlignment(isArabic ? .center : .leading)
+                .multilineTextAlignment(.center)
                 .padding(.top, 10)
 
             Text(isArabic ? "عضو" : "Member")
                 .font(.system(size: 16, weight: .regular))
                 .foregroundColor(Color(hex: 0x6C7072))
-                .multilineTextAlignment(isArabic ? .center : .leading)
+                .multilineTextAlignment(.center)
                 .padding(.top, 4)
         }
-        .frame(maxWidth: .infinity, alignment: isArabic ? .center : .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     // MARK: - Menu
@@ -177,44 +181,35 @@ struct SidePanelView: View {
         }
     }
 
-    /// Figma 1072:6207: icons hug the decorative strip (AR strip right → icon right; EN strip left → icon left).
+    /// Fixed leading icon column so Home / Profile / Membership stay aligned (no centering whole row by label width).
     private func menuRowContent(icon: String, label: String, useSFSymbol: Bool) -> some View {
-        let iconGroup = Group {
+        let iconSlot = ZStack {
             if useSFSymbol {
                 Image(systemName: icon)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 22, height: 22)
-                    .foregroundColor(Color(hex: 0x6C7072))
+                    .frame(width: 24, height: 24)
+                    .foregroundColor(menuItemColor)
             } else {
                 Image(icon)
                     .resizable()
                     .renderingMode(.template)
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 24, height: 24)
-                    .foregroundColor(Color(hex: 0x6C7072))
+                    .foregroundColor(menuItemColor)
             }
         }
         .frame(width: 28, height: 28, alignment: .center)
 
         return HStack(spacing: 12) {
-            if isArabic {
-                Text(label)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(Color(hex: 0x0F0F0F))
-                    .multilineTextAlignment(.trailing)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                iconGroup
-            } else {
-                iconGroup
-                Text(label)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(Color(hex: 0x0F0F0F))
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
+            iconSlot
+            Text(label)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundColor(menuItemColor)
+                .multilineTextAlignment(isArabic ? .trailing : .leading)
+                .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 16)
         .frame(height: 56)
         .environment(\.layoutDirection, .leftToRight)
     }
@@ -228,7 +223,10 @@ struct SidePanelView: View {
     // MARK: - Logout (Figma AR: «الخروج» + icon on outer side)
 
     private var logoutButton: some View {
-        Button(action: {}) {
+        Button(action: {
+            AuthenticationManager.shared.logout()
+            NotificationCenter.default.post(name: Notification.Name("userDidLogout"), object: nil)
+        }) {
             HStack(spacing: 14) {
                 let logoutIcon = Image("side-panel-logout")
                     .resizable()
@@ -236,20 +234,21 @@ struct SidePanelView: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 18, height: 14)
                     .foregroundColor(Color(hex: 0xA71E1E))
+                Spacer(minLength: 4)
                 if isArabic {
                     Text("الخروج")
                         .font(.custom("ExpoArabic-Medium", size: 16))
                         .foregroundColor(Color(hex: 0xA71E1E))
-                        .frame(maxWidth: .infinity, alignment: .trailing)
                     logoutIcon
                 } else {
                     logoutIcon
                     Text("Logout")
                         .font(.custom("ExpoArabic-Medium", size: 16))
                         .foregroundColor(Color(hex: 0xA71E1E))
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                Spacer(minLength: 4)
             }
+            .frame(maxWidth: .infinity)
             .environment(\.layoutDirection, .leftToRight)
         }
     }

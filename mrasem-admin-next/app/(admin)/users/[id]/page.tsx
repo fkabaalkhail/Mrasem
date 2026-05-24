@@ -57,6 +57,7 @@ export default function UserBookingsPage() {
       <h1 className="mt-4 text-2xl font-semibold text-mrasem-preiwinki">Bookings</h1>
       <p className="mt-1 font-mono text-sm text-gray-600">{user.phone}</p>
       {user.name && <p className="text-sm text-gray-500">{user.name}</p>}
+      {user.membership_id && <p className="text-sm text-gray-500">Membership: {user.membership_id}</p>}
       <div className="mt-6 overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-gray-100 bg-gray-50/80">

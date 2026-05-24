@@ -312,9 +312,9 @@ const seasonEventArabicRows = [
   },
   {
     name: 'Mirkaz',
-    an: 'مركز',
-    ac: 'مناسبة موسمية',
-    al: 'مكة المكرمة، المملكة العربية السعودية'
+    an: 'مركاز البلد الأمين',
+    ac: 'تجربة موسمية',
+    al: 'مكة، السعودية'
   },
   {
     name: 'AlUla Skyrise',

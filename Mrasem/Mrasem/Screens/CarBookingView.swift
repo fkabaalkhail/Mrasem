@@ -203,7 +203,7 @@ struct CarBookingView: View {
     // MARK: - Header (Figma 348:4175 / 354:5576 — 228pt brown; Arabic: menu leading, greeting center, profile trailing)
 
     private var greetingText: String {
-        isArabic ? "أهلا عبدالله!" : "Hi Abdullah"
+        isArabic ? "أهلا \(AuthenticationManager.shared.userName ?? AuthenticationManager.shared.phoneNumber ?? "")!" : "Hi \(AuthenticationManager.shared.userName ?? AuthenticationManager.shared.phoneNumber ?? "")"
     }
 
     private var searchPlaceholder: String {

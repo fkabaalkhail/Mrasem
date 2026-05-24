@@ -15,6 +15,7 @@ class AuthenticationManager {
     var isPhoneVerified: Bool = false
     var hasMembership: Bool = false
     var membershipNumber: String?
+    var userName: String?
     var userToken: String?
 
     /// Indicates an OTP send/verify request is in progress
@@ -29,6 +30,7 @@ class AuthenticationManager {
         static let isPhoneVerified = "isPhoneVerified"
         static let hasMembership = "hasMembership"
         static let membershipNumber = "membershipNumber"
+        static let userName = "userName"
         /// Keychain key for the JWT token
         static let authToken = "auth_token"
     }
@@ -78,6 +80,7 @@ class AuthenticationManager {
         isPhoneVerified = defaults.bool(forKey: Keys.isPhoneVerified)
         hasMembership = defaults.bool(forKey: Keys.hasMembership)
         membershipNumber = defaults.string(forKey: Keys.membershipNumber)
+        userName = defaults.string(forKey: Keys.userName)
 
         // Read token from Keychain instead of UserDefaults
         if let tokenData = KeychainHelper.shared.read(key: Keys.authToken),
@@ -99,6 +102,7 @@ class AuthenticationManager {
         defaults.set(isPhoneVerified, forKey: Keys.isPhoneVerified)
         defaults.set(hasMembership, forKey: Keys.hasMembership)
         defaults.set(membershipNumber, forKey: Keys.membershipNumber)
+        defaults.set(userName, forKey: Keys.userName)
         // Token is NOT stored in UserDefaults — it lives in Keychain
     }
 
@@ -152,50 +156,72 @@ class AuthenticationManager {
         let user: UserInfo?
     }
 
-    // MARK: - Dev Bypass
-    // Set to true to allow code "000000" to bypass OTP verification
-    // without needing the backend running. Remove before production.
-    #if DEBUG
-    private let devBypassEnabled = true
-    private let devBypassCode = "000000"
-    #else
-    private let devBypassEnabled = false
-    private let devBypassCode = ""
-    #endif
+    // MARK: - Demo / dev bypass
+    /// DEBUG builds always allow bypass. Release: set `MRASEM_DEMO_MODE` = YES in Info.plist for TestFlight/public demos only; turn off for App Store.
+    private var allowsDemoBypass: Bool {
+        #if DEBUG
+        true
+        #else
+        Bundle.main.object(forInfoDictionaryKey: "MRASEM_DEMO_MODE") as? Bool == true
+        #endif
+    }
 
-    /// Send OTP to the given phone number via the backend.
+    private let demoBypassCode = "000000"
+    private static let demoGuestPhone = "+966000000000"
+
+    /// One-shot guest sign-in for demos (no SMS). No-op if demo mode is disabled.
+    @MainActor
+    func enterDemoGuestMode() {
+        guard allowsDemoBypass else { return }
+        let phone = Self.demoGuestPhone
+        phoneNumber = phone
+        let fakeToken = "dev-bypass-token-\(phone)"
+        if let tokenData = fakeToken.data(using: .utf8) {
+            KeychainHelper.shared.save(key: Keys.authToken, data: tokenData)
+        }
+        userToken = fakeToken
+        isPhoneVerified = true
+        isAuthenticated = true
+        membershipNumber = "0000000000"
+        hasMembership = true
+        if userName == nil || userName?.isEmpty == true {
+            userName = "Demo"
+        }
+        hasCompletedOnboarding = true
+        persistState()
+    }
+
+    /// Whether to show demo UI (guest entry, OTP shortcut).
+    var isDemoModeEnabled: Bool { allowsDemoBypass }
+
+    /// Send OTP to the given phone number via Supabase Auth.
     func sendOTP(phone: String) async throws {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
 
-        // In dev mode, skip the API call — just save the phone number
-        if devBypassEnabled {
+        // Demo / DEBUG: skip SMS — just save the phone number
+        if allowsDemoBypass {
             phoneNumber = phone
             persistState()
             return
         }
 
-        let body = SendOTPRequest(phone: phone)
-        let _: SendOTPResponse = try await APIClient.shared.post(
-            "/mobile/auth/send-otp",
-            body: body,
-            authenticated: false
-        )
+        try await SupabaseAuth.shared.sendOTP(phone: phone)
         phoneNumber = phone
         persistState()
     }
 
-    /// Verify phone with OTP code via the backend.
-    /// On success, stores the JWT in Keychain and sets authenticated state.
+    /// Verify phone with OTP code via Supabase Auth.
+    /// On success, stores the JWT in Keychain, fetches membership ID, and sets authenticated state.
     func verifyPhone(otp: String, completion: @escaping (Bool, String?) -> Void) {
         guard let phone = phoneNumber else {
             completion(false, "Phone number not set")
             return
         }
 
-        // Dev bypass: code "000000" skips the API entirely
-        if devBypassEnabled && otp == devBypassCode {
+        // Demo: code "000000" skips Supabase verify
+        if allowsDemoBypass && otp == demoBypassCode {
             let fakeToken = "dev-bypass-token-\(phone)"
             if let tokenData = fakeToken.data(using: .utf8) {
                 KeychainHelper.shared.save(key: Keys.authToken, data: tokenData)
@@ -203,6 +229,8 @@ class AuthenticationManager {
             userToken = fakeToken
             isPhoneVerified = true
             isAuthenticated = true
+            membershipNumber = "0000000000"
+            hasMembership = true
             persistState()
             completion(true, nil)
             return
@@ -213,29 +241,26 @@ class AuthenticationManager {
 
         Task { @MainActor in
             do {
-                let body = VerifyOTPRequest(phone: phone, code: otp)
-                let response: VerifyOTPResponse = try await APIClient.shared.post(
-                    "/mobile/auth/verify-otp",
-                    body: body,
-                    authenticated: false
-                )
+                let session = try await SupabaseAuth.shared.verifyOTP(phone: phone, code: otp)
 
                 // Store JWT in Keychain
-                if let tokenData = response.token.data(using: .utf8) {
+                if let tokenData = session.accessToken.data(using: .utf8) {
                     KeychainHelper.shared.save(key: Keys.authToken, data: tokenData)
                 }
 
-                userToken = response.token
+                userToken = session.accessToken
                 isPhoneVerified = true
                 isAuthenticated = true
+
+                // Fetch membership ID
+                if let mid = try? await SupabaseAuth.shared.fetchMembershipId(accessToken: session.accessToken) {
+                    membershipNumber = mid
+                    hasMembership = true
+                }
+
                 isLoading = false
                 persistState()
                 completion(true, nil)
-            } catch let error as APIError {
-                isLoading = false
-                let message = error.errorDescription ?? "Verification failed"
-                errorMessage = message
-                completion(false, message)
             } catch {
                 isLoading = false
                 let message = error.localizedDescription
@@ -256,32 +281,35 @@ class AuthenticationManager {
 
     // MARK: - Token Validation
 
-    /// Validate the stored token with the backend on app launch.
+    /// Validate the stored token on app launch and fetch membership ID.
     /// If the token is invalid or expired, resets to unauthenticated state.
-    /// Skips validation for dev bypass tokens or when backend is unreachable in DEBUG.
     func validateTokenOnLaunch() async {
         guard let token = userToken else { return }
 
-        // Skip validation for dev bypass tokens
-        #if DEBUG
-        if token.hasPrefix("dev-bypass-token-") { return }
-        #endif
+        // Local demo tokens are not valid on Supabase
+        if token.hasPrefix("dev-bypass-token-") {
+            if allowsDemoBypass { return }
+            await MainActor.run { forceLogout() }
+            return
+        }
 
+        // Try to fetch membership ID — if it works, token is valid
         do {
-            let response: ValidateResponse = try await APIClient.shared.get(
-                "/mobile/auth/validate",
-                authenticated: true
-            )
-            if !response.valid {
-                await MainActor.run { forceLogout() }
+            if let mid = try await SupabaseAuth.shared.fetchMembershipId(accessToken: token) {
+                await MainActor.run {
+                    membershipNumber = mid
+                    hasMembership = true
+                    persistState()
+                }
             }
         } catch {
-            // In DEBUG, don't force logout on network errors (server might not be running)
+            // Token is invalid — clear auth state
             #if DEBUG
-            if case APIError.networkError = error { return }
-            #endif
-            // Token is invalid or network error — clear auth state
+            // In DEBUG, don't force logout on network errors
+            return
+            #else
             await MainActor.run { forceLogout() }
+            #endif
         }
     }
 
@@ -291,6 +319,12 @@ class AuthenticationManager {
     func saveMembership(number: String) {
         hasMembership = true
         membershipNumber = number
+        persistState()
+    }
+
+    /// Save display name
+    func saveName(_ name: String?) {
+        userName = name
         persistState()
     }
 
@@ -304,6 +338,7 @@ class AuthenticationManager {
         phoneNumber = nil
         hasMembership = false
         membershipNumber = nil
+        userName = nil
         KeychainHelper.shared.delete(key: Keys.authToken)
         persistState()
     }

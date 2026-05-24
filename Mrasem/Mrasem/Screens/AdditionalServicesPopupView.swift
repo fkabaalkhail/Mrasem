@@ -30,12 +30,13 @@ struct AdditionalServicesFieldFramePreference: PreferenceKey {
     }
 }
 
-/// Additional services picker — Figma **1202:11601** (dropdown list: 8pt radius, 44pt rows, shadow 0/4/14 @ 10%).
+/// Additional services picker — list card Figma **1017:1976** / **1202:11601** (8pt radius, 44pt rows).
+/// Anchors **above** the field when there is room (matches design: menu sits higher, not hugging the bottom).
 struct AdditionalServicesPopupView: View {
     @Binding var isPresented: Bool
     @Binding var selection: Set<String>
-    /// Distance from the top of this overlay to place the dropdown (field `maxY` + gap in the same coordinate space as the overlay’s parent).
-    var dropdownTopInset: CGFloat
+    /// Field rect in the same coordinate space as the overlay parent (`bookingDetailsRoot`).
+    var fieldFrame: CGRect
 
     @EnvironmentObject private var languageManager: LanguageManager
 
@@ -52,8 +53,39 @@ struct AdditionalServicesPopupView: View {
         ("__clear__", true),
     ]
 
-    var body: some View {
+    private var menuContentHeight: CGFloat {
+        CGFloat(rows.count) * 44 + 6
+    }
+
+    /// Prefer opening **above** the field (higher on screen); fall back to below if not enough space under header.
+    private var menuTopPadding: CGFloat {
         let gap: CGFloat = 8
+        let headerBottom: CGFloat = 172
+        let minTop = headerBottom + gap
+
+        guard fieldFrame.width > 0, fieldFrame.height > 0 else {
+            return minTop
+        }
+
+        let aboveTop = fieldFrame.minY - gap - menuContentHeight
+        if aboveTop >= minTop {
+            return aboveTop
+        }
+        return fieldFrame.maxY + gap
+    }
+
+    private var menuScaleAnchor: UnitPoint {
+        guard fieldFrame.width > 0, fieldFrame.height > 0 else { return .top }
+        let headerBottom: CGFloat = 172
+        let gap: CGFloat = 8
+        let aboveTop = fieldFrame.minY - gap - menuContentHeight
+        if aboveTop >= headerBottom + gap {
+            return .bottom
+        }
+        return .top
+    }
+
+    var body: some View {
         ZStack(alignment: .top) {
             Color.black.opacity(0.35)
                 .ignoresSafeArea()
@@ -63,9 +95,9 @@ struct AdditionalServicesPopupView: View {
 
             dropdownCard
                 .padding(.horizontal, 21)
-                .padding(.top, max(0, dropdownTopInset + gap))
+                .padding(.top, menuTopPadding)
                 .transition(.asymmetric(
-                    insertion: .opacity.combined(with: .scale(scale: 0.98, anchor: .top)),
+                    insertion: .opacity.combined(with: .scale(scale: 0.98, anchor: menuScaleAnchor)),
                     removal: .opacity
                 ))
         }

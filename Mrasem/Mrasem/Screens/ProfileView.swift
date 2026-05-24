@@ -3,8 +3,15 @@ import SwiftUI
 struct ProfileView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var languageManager: LanguageManager
+    @State private var showEditName = false
 
     private var isArabic: Bool { languageManager.current == .arabic }
+    private var auth: AuthenticationManager { .shared }
+    private var displayName: String {
+        let name = auth.userName
+        if let name, !name.isEmpty { return name }
+        return auth.phoneNumber ?? "—"
+    }
 
     private let brandBrown = Color(red: 0x31/255, green: 0x23/255, blue: 0x1B/255)
     private let fieldBorder = Color(red: 0xF1/255, green: 0xEC/255, blue: 0xEC/255)
@@ -17,88 +24,95 @@ struct ProfileView: View {
             Color.white.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                headerBar
+                // Brown bar only — matches ActivityDetailView / SeasonEventDetailView / RestaurantDetailView (90pt).
+                brandBrown
+                    .ignoresSafeArea(edges: .top)
+                    .frame(height: 90)
+
                 decorativeStrip
                 profileContent
             }
             .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
+
+            // Header chrome — same back + logo + menu as detail screens (Figma 1040:3000).
+            VStack {
+                HStack(alignment: .center) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 22, weight: .medium))
+                            .foregroundColor(.white)
+                            .flipsForRightToLeftLayoutDirection(false)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    Image("mrasem-logo")
+                        .resizable()
+                        .renderingMode(.original)
+                        .scaledToFit()
+                        .frame(height: 50)
+
+                    Spacer()
+
+                    Button(action: {}) {
+                        Image("menu-icon")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 28, height: 20)
+                    }
+                    .frame(width: 44, height: 44)
+                    .buttonStyle(.plain)
+                }
+                .environment(\.layoutDirection, .leftToRight)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+
+                Spacer()
+            }
+            .allowsHitTesting(true)
+            .zIndex(10)
         }
         .navigationBarHidden(true)
-    }
-
-    // MARK: - Header (brown bar with back arrow + logo)
-
-    private var headerBar: some View {
-        ZStack {
-            brandBrown.ignoresSafeArea(edges: .top)
-
-            HStack {
-                Button(action: { dismiss() }) {
-                    Image("profile-back-arrow")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 24, height: 24)
-                }
-
-                Spacer()
-
-                Image("mrasem-logo")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(height: 50)
-
-                Spacer()
-
-                Color.clear.frame(width: 24, height: 24)
-            }
-            .padding(.horizontal, 24)
+        .navigationBarBackButtonHidden(true)
+        .sheet(isPresented: $showEditName) {
+            EditNameView()
+                .environmentObject(languageManager)
         }
-        .frame(height: 126)
     }
 
-    // MARK: - Decorative geometric strip
+    // MARK: - Decorative strip
 
     private var decorativeStrip: some View {
         HStack(spacing: 8) {
-            decoStripImage("sp-deco-0", size: 58)
-            decoStripImage("sp-deco-5", size: 58)
-            decoStripImage("sp-deco-1", size: 58)
-            decoStripImage("sp-deco-6", size: 58)
-            decoStripImage("sp-deco-4", w: 20, h: 58)
-            decoStripImage("sp-deco-7", size: 58)
+            decoImg("sp-deco-0", size: 58)
+            decoImg("sp-deco-5", size: 58)
+            decoImg("sp-deco-1", size: 58)
+            decoImg("sp-deco-6", size: 58)
+            decoImg("sp-deco-4", w: 20, h: 58)
+            decoImg("sp-deco-7", size: 58)
         }
         .frame(height: 58)
         .clipped()
-        .padding(.top, 0)
     }
 
-    private func decoStripImage(_ name: String, size: CGFloat) -> some View {
-        Image(name)
-            .resizable()
-            .aspectRatio(contentMode: .fit)
-            .frame(width: size, height: size)
+    private func decoImg(_ name: String, size: CGFloat) -> some View {
+        Image(name).resizable().aspectRatio(contentMode: .fit).frame(width: size, height: size)
+    }
+    private func decoImg(_ name: String, w: CGFloat, h: CGFloat) -> some View {
+        Image(name).resizable().aspectRatio(contentMode: .fit).frame(width: w, height: h)
     }
 
-    private func decoStripImage(_ name: String, w: CGFloat, h: CGFloat) -> some View {
-        Image(name)
-            .resizable()
-            .aspectRatio(contentMode: .fit)
-            .frame(width: w, height: h)
-    }
-
-    // MARK: - Profile content
+    // MARK: - Content
 
     private var profileContent: some View {
         VStack(spacing: 0) {
-            avatarSection
-                .padding(.top, 20)
-
-            formFields
-                .padding(.top, 30)
-
+            avatarSection.padding(.top, 20)
+            formFields.padding(.top, 30)
             Spacer()
-
-            Button(action: {}) {
+            Button(action: { logout() }) {
                 Text(isArabic ? "تسجيل الخروج" : "Logout")
                     .font(.custom("ExpoArabic-Medium", size: 16))
                     .foregroundColor(logoutRed)
@@ -107,7 +121,7 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - Avatar + Name (Figma 1043:2479 — AR: edit badge, سعود خالد)
+    // MARK: - Avatar + Name + Edit
 
     private var avatarSection: some View {
         VStack(spacing: 0) {
@@ -116,7 +130,6 @@ struct ProfileView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 86, height: 86)
-
                 Image("profile-edit-avatar")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -124,11 +137,20 @@ struct ProfileView: View {
                     .offset(x: isArabic ? -2 : 2, y: 2)
             }
 
-            Text(isArabic ? "سعود خالد" : "Saud Khalid")
-                .font(.custom("ExpoArabic-Bold", size: 18))
-                .foregroundColor(textDark)
-                .tracking(0.036)
-                .padding(.top, 12)
+            HStack(spacing: 8) {
+                Text(displayName)
+                    .font(.custom("ExpoArabic-Bold", size: 18))
+                    .foregroundColor(textDark)
+                    .tracking(0.036)
+
+                Button(action: { showEditName = true }) {
+                    Image("profile-field-edit")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 15, height: 15)
+                }
+            }
+            .padding(.top, 12)
         }
     }
 
@@ -138,11 +160,11 @@ struct ProfileView: View {
         VStack(alignment: isArabic ? .trailing : .leading, spacing: 16) {
             fieldRow(
                 label: isArabic ? "رقم الجوال" : "Phone Number",
-                value: "+966 5312313580"
+                value: auth.phoneNumber ?? "—"
             )
             fieldRow(
                 label: isArabic ? "رقم العضوية" : "Membership Number",
-                value: "7826550197"
+                value: auth.membershipNumber ?? "—"
             )
         }
         .padding(.horizontal, 24)
@@ -155,29 +177,27 @@ struct ProfileView: View {
                 .foregroundColor(textDark)
                 .tracking(0.028)
                 .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
-
             HStack {
-                Image("profile-field-edit")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 15, height: 15)
-
                 Spacer()
-
                 Text(value)
                     .font(.custom("ExpoArabic-Medium", size: 14))
                     .foregroundColor(textGray)
                     .tracking(0.028)
-                    .multilineTextAlignment(isArabic ? .trailing : .leading)
             }
             .environment(\.layoutDirection, .leftToRight)
             .padding(.horizontal, 15)
             .frame(height: 54)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(fieldBorder, lineWidth: 1)
-            )
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(fieldBorder, lineWidth: 1))
         }
+    }
+
+    // MARK: - Logout
+
+    private func logout() {
+        AuthenticationManager.shared.logout()
+        // Post notification so AppCoordinator can reset to login
+        NotificationCenter.default.post(name: Notification.Name("userDidLogout"), object: nil)
+        dismiss()
     }
 }
 

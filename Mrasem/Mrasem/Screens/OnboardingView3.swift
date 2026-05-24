@@ -78,7 +78,7 @@ struct OnboardingView3: View {
                             .padding(.top, 64)
                         
                         Spacer()
-                            .frame(minHeight: 40)
+                            .frame(minHeight: 20)
                         
                         Button(action: { onGetStarted?() }) {
                             Text(languageManager.current == .arabic ? "ابدأ الآن" : "Get Started")
@@ -89,7 +89,7 @@ struct OnboardingView3: View {
                                 .background(Color.white)
                                 .cornerRadius(13)
                         }
-                        .padding(.bottom, 37)
+                        .padding(.bottom, 50)
                     }
                     .frame(height: 312)
                     .frame(width: geometry.size.width)

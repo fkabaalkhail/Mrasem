@@ -31,6 +31,8 @@ struct SeasonEventsListView: View {
         Array(seasonEvents.enumerated().filter { $0.offset % 2 == 1 }.map { $0.element })
     }
 
+    private var useSingleLargeSeasonLayout: Bool { seasonEvents.count == 1 }
+
     private func toggleFavorite(_ name: String) {
         if favorites.contains(name) { favorites.remove(name) } else { favorites.insert(name) }
     }
@@ -60,7 +62,7 @@ struct SeasonEventsListView: View {
                                             .frame(width: 28, height: 20)
                                     }
                                     Spacer(minLength: 0)
-                                    Text("أهلا عبدالله!")
+                                    Text("أهلا \(AuthenticationManager.shared.userName ?? AuthenticationManager.shared.phoneNumber ?? "")!")
                                         .font(.custom("ExpoArabic-Medium", size: 12))
                                         .fontWeight(.medium)
                                         .foregroundColor(.white)
@@ -89,7 +91,7 @@ struct SeasonEventsListView: View {
                                                 .frame(width: 36, height: 36)
                                         }
                                     }
-                                    Text("Hi Abdullah")
+                                    Text("Hi \(AuthenticationManager.shared.userName ?? AuthenticationManager.shared.phoneNumber ?? "")")
                                         .font(.custom("ExpoArabic-Medium", size: 12))
                                         .fontWeight(.medium)
                                         .foregroundColor(.white)
@@ -190,7 +192,24 @@ struct SeasonEventsListView: View {
                         .padding(.top, -50)
                         Spacer()
                     } else {
-                    // 2-row event grid
+                    if useSingleLargeSeasonLayout, let only = seasonEvents.first {
+                        HStack {
+                            Spacer(minLength: 0)
+                            NavigationLink(destination: SeasonEventDetailView(event: only)) {
+                                SeasonEventLargeFeaturedCard(
+                                    event: only,
+                                    isArabic: languageManager.current == .arabic,
+                                    isFavorite: favorites.contains(only.name),
+                                    onToggleFavorite: { toggleFavorite(only.name) }
+                                )
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.top, -72)
+                        .padding(.bottom, 4)
+                        .environment(\.layoutDirection, languageManager.current == .arabic ? .rightToLeft : .leftToRight)
+                    } else {
                     ScrollView(.horizontal, showsIndicators: false) {
                         VStack(alignment: .leading, spacing: 14) {
                             HStack(spacing: 16) {
@@ -216,6 +235,7 @@ struct SeasonEventsListView: View {
                     .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
                     .environment(\.layoutDirection, languageManager.current == .arabic ? .rightToLeft : .leftToRight)
                     .padding(.top, -84)
+                    }
 
                     // Figma 1202:18419 / 1266:43187 — Arabic: الفعالية القريبة منك
                     Text(languageManager.current == .arabic ? "الفعالية القريبة منك" : "Nearby Events")
@@ -224,7 +244,7 @@ struct SeasonEventsListView: View {
                         .foregroundColor(.black)
                         .frame(maxWidth: .infinity, alignment: languageManager.current == .arabic ? .trailing : .leading)
                         .padding(.horizontal, 21)
-                        .padding(.top, 3)
+                        .padding(.top, useSingleLargeSeasonLayout ? 20 : 3)
 
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
@@ -296,6 +316,85 @@ struct SeasonEventsListView: View {
 }
 
 // MARK: - Grid Event Card (151×170) — Figma 640:3477+
+
+/// Single full-width-style card when the city has one season event (matches activities `ActivityLargeFeaturedCard`).
+struct SeasonEventLargeFeaturedCard: View {
+    let event: SeasonEvent
+    var isArabic: Bool = false
+    var isFavorite: Bool = false
+    var onToggleFavorite: (() -> Void)? = nil
+
+    private let cardWidth: CGFloat = 251
+    private let cardHeight: CGFloat = 283
+    private let textGreen = Color(red: 0x21 / 255.0, green: 0x3C / 255.0, blue: 0x2E / 255.0)
+
+    var body: some View {
+        VStack(alignment: isArabic ? .trailing : .leading, spacing: 0) {
+            ZStack(alignment: .topTrailing) {
+                RemoteImage(imageName: event.imageName)
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: cardWidth - 15, height: 166)
+                    .clipped()
+                    .cornerRadius(11)
+                    .padding(.top, 7)
+                    .padding(.horizontal, 7.5)
+
+                Button(action: { onToggleFavorite?() }) {
+                    ZStack {
+                        Image("heart-icon").resizable().aspectRatio(contentMode: .fit).frame(width: 22, height: 22)
+                        Image("base").resizable().aspectRatio(contentMode: .fit).frame(width: 11, height: 11)
+                    }
+                }
+                .padding(.top, 10)
+                .padding(.trailing, 10)
+            }
+
+            VStack(alignment: isArabic ? .trailing : .leading, spacing: 0) {
+                Text(event.displayTitle(isArabic: isArabic))
+                    .font(.custom("ExpoArabic-Medium", size: 24))
+                    .foregroundColor(.black)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
+                    .multilineTextAlignment(isArabic ? .trailing : .leading)
+                    .padding(.top, 8)
+
+                Text(event.displayCategory(isArabic: isArabic))
+                    .font(.custom("ExpoArabic-Medium", size: 10))
+                    .foregroundColor(textGreen.opacity(0.58))
+                    .lineLimit(1)
+                    .padding(.top, 4)
+
+                HStack(spacing: 4) {
+                    if !isArabic {
+                        Image("location-icon")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 9, height: 11)
+                    }
+                    Text(event.displayLocation(isArabic: isArabic))
+                        .font(.custom("ExpoArabic-Medium", size: 11))
+                        .foregroundColor(textGreen)
+                        .lineLimit(1)
+                    if isArabic {
+                        Image("location-icon")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 9, height: 11)
+                    }
+                }
+                .padding(.top, 6)
+            }
+            .padding(.horizontal, 11)
+            .padding(.bottom, 12)
+        }
+        .frame(width: cardWidth, height: cardHeight)
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
+        .contentShape(Rectangle())
+        .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
+    }
+}
 
 struct GridEventCard: View {
     let event: SeasonEvent

@@ -64,6 +64,7 @@ export type AppUser = {
   id: number;
   phone: string;
   name: string | null;
+  membership_id: string | null;
   created_at?: string;
 };
 

@@ -20,6 +20,11 @@ struct SentInvitation: Codable, Identifiable, Equatable {
     let timeDisplay: String
     let branch: String
     let recipientPhone: String
+    /// Optional Arabic copy for invitation cards (Figma 1077:7323+). Omitted in JSON → `nil`.
+    let arabicPlaceTitle: String?
+    let arabicDateDisplay: String?
+    let arabicTimeDisplay: String?
+    let arabicBranch: String?
 }
 
 enum ReceivedInvitationResponse: String, Codable {
@@ -38,6 +43,10 @@ struct ReceivedInvitation: Codable, Identifiable, Equatable, Hashable {
     let timeDisplay: String
     let branch: String
     let inviterPhone: String
+    let arabicPlaceTitle: String?
+    let arabicDateDisplay: String?
+    let arabicTimeDisplay: String?
+    let arabicBranch: String?
     /// When set, accepting/declining updates the matching sent invitation (demo sync).
     var linkedSentId: String?
 }
@@ -271,7 +280,11 @@ final class InvitationStore: ObservableObject {
                 dateDisplay: created.dateDisplay,
                 timeDisplay: created.timeDisplay,
                 branch: created.branch,
-                recipientPhone: created.recipientPhone
+                recipientPhone: created.recipientPhone,
+                arabicPlaceTitle: nil,
+                arabicDateDisplay: nil,
+                arabicTimeDisplay: nil,
+                arabicBranch: nil
             )
             sentInvitations.append(item)
             save()
@@ -301,7 +314,11 @@ final class InvitationStore: ObservableObject {
                 dateDisplay: dateDisplay,
                 timeDisplay: timeDisplay,
                 branch: branch,
-                recipientPhone: recipientPhone
+                recipientPhone: recipientPhone,
+                arabicPlaceTitle: nil,
+                arabicDateDisplay: nil,
+                arabicTimeDisplay: nil,
+                arabicBranch: nil
             )
             sentInvitations.append(localItem)
 
@@ -316,6 +333,10 @@ final class InvitationStore: ObservableObject {
                 timeDisplay: timeDisplay,
                 branch: branch,
                 inviterPhone: "+966559035417",
+                arabicPlaceTitle: nil,
+                arabicDateDisplay: nil,
+                arabicTimeDisplay: nil,
+                arabicBranch: nil,
                 linkedSentId: sentId
             )
             receivedInvitations.append(received)
@@ -410,7 +431,11 @@ final class InvitationStore: ObservableObject {
                 dateDisplay: "Jan 3",
                 timeDisplay: "8:00PM",
                 branch: "Albasateen Mall, Alrawdha",
-                recipientPhone: "+966588762140"
+                recipientPhone: "+966587469928",
+                arabicPlaceTitle: "مطعم ميازو",
+                arabicDateDisplay: "3 يناير",
+                arabicTimeDisplay: "1:00 م",
+                arabicBranch: "مول البساتين، الروضة"
             ),
             SentInvitation(
                 id: acceptedId,
@@ -421,7 +446,11 @@ final class InvitationStore: ObservableObject {
                 dateDisplay: "Jan 3",
                 timeDisplay: "8:00PM",
                 branch: "Albasateen Mall, Alrawdha",
-                recipientPhone: "+966500111222"
+                recipientPhone: "+966587469928",
+                arabicPlaceTitle: "مطعم ميازو",
+                arabicDateDisplay: "3 يناير",
+                arabicTimeDisplay: "1:00 م",
+                arabicBranch: "مول البساتين، الروضة"
             ),
             SentInvitation(
                 id: declinedId,
@@ -432,7 +461,11 @@ final class InvitationStore: ObservableObject {
                 dateDisplay: "Jan 3",
                 timeDisplay: "8:00PM",
                 branch: "Albasateen Mall, Alrawdha",
-                recipientPhone: "+966500333444"
+                recipientPhone: "+966587469928",
+                arabicPlaceTitle: "مطعم ميازو",
+                arabicDateDisplay: "3 يناير",
+                arabicTimeDisplay: "1:00 م",
+                arabicBranch: "مول البساتين، الروضة"
             ),
         ]
 
@@ -440,13 +473,17 @@ final class InvitationStore: ObservableObject {
             ReceivedInvitation(
                 id: receivedAwaitingId,
                 userResponse: .awaiting,
-                placeTitle: "Khemah The Groves",
-                subtitle: "Outdoor dining",
-                imageName: "riyadh-khemah-groves",
-                dateDisplay: "Feb 12",
-                timeDisplay: "7:00PM",
-                branch: "Riyadh Park",
-                inviterPhone: "+966555010203",
+                placeTitle: "Myazu Restaurant",
+                subtitle: "Japanese, Sushi",
+                imageName: "restaurant-myazu",
+                dateDisplay: "Jan 3",
+                timeDisplay: "8:00PM",
+                branch: "Albasateen Mall, Alrawdha",
+                inviterPhone: "+966587469928",
+                arabicPlaceTitle: "مطعم ميازو",
+                arabicDateDisplay: "3 يناير",
+                arabicTimeDisplay: "1:00 م",
+                arabicBranch: "مول البساتين، الروضة",
                 linkedSentId: nil
             ),
         ]

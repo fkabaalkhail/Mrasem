@@ -13,6 +13,7 @@ struct BookingConfirmationView: View {
     let selectedAdditionalServices: Set<String>
 
     @State private var showWalletPass = false
+    @State private var showSidePanel = false
     @EnvironmentObject private var reservationStore: ReservationStore
     @EnvironmentObject private var languageManager: LanguageManager
 
@@ -54,10 +55,11 @@ struct BookingConfirmationView: View {
 
     private var peopleLine: String {
         if isArabic {
-            if quantity == 1 { return "شخص واحد" }
-            return "\(quantity) أشخاص"
+            if quantity == 1 { return "حتى راكب واحد" }
+            return "حتى \(quantity) ركاب"
         }
-        return "\(quantity) \(quantity == 1 ? "Person" : "People")"
+        if quantity == 1 { return "Up to 1 passenger" }
+        return "Up to \(quantity) passengers"
     }
 
     private var additionalServicesLine: String? {
@@ -70,22 +72,19 @@ struct BookingConfirmationView: View {
     }
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             pageBg.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Figma 1202:11746 — brown band through status bar (no light gap above header).
-                Color.clear
-                    .frame(height: 114)
-                    .frame(maxWidth: .infinity)
-                    .background {
-                        brandBrown.ignoresSafeArea(edges: .top)
-                    }
+                // Same 90pt brown + floating logo row as RestaurantDetailView / BookingDetailsView.
+                brandBrown
+                    .ignoresSafeArea(edges: .top)
+                    .frame(height: 90)
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
                         confirmationHeader
-                            .padding(.top, 20)
+                            .padding(.top, 10)
                             .padding(.horizontal, 21)
 
                         bookingDetailsCard
@@ -127,6 +126,47 @@ struct BookingConfirmationView: View {
                 bottomNav
             }
             .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
+
+            // Centered logo + side menu — same chrome height/padding as restaurant detail (90pt bar below).
+            VStack {
+                HStack(alignment: .center) {
+                    Color.clear.frame(width: 44, height: 44)
+
+                    Spacer()
+
+                    Image("mrasem-logo")
+                        .resizable()
+                        .renderingMode(.original)
+                        .scaledToFit()
+                        .frame(height: 50)
+
+                    Spacer()
+
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.25)) { showSidePanel = true }
+                    }) {
+                        Image("group2")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 28, height: 20)
+                    }
+                    .frame(width: 44, height: 44)
+                    .buttonStyle(.plain)
+                }
+                .environment(\.layoutDirection, .leftToRight)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+
+                Spacer()
+            }
+            .allowsHitTesting(true)
+            .zIndex(10)
+
+            if showSidePanel {
+                SidePanelView(isOpen: $showSidePanel)
+                    .transition(.opacity)
+                    .zIndex(20)
+            }
         }
         .navigationBarHidden(true)
         .navigationBarBackButtonHidden(true)
@@ -171,7 +211,7 @@ struct BookingConfirmationView: View {
         }
     }
 
-    /// Figma 1202:11746 — check + title + body
+    /// Figma 1202:11746 / 1017:2186 — check + title + body
     private var confirmationHeader: some View {
         HStack(alignment: .top, spacing: 12) {
             Group {

@@ -42,13 +42,6 @@ struct BookingDetailsView: View {
         return ""
     }
 
-    private var displaySubtitle: String {
-        if let r = restaurant { return isArabic ? r.arabicCuisine : r.cuisine }
-        if let a = activity { return a.category }
-        if let e = seasonEvent { return e.category }
-        return ""
-    }
-
     private var displayImage: String {
         restaurant?.imageName ?? activity?.imageName ?? seasonEvent?.imageName ?? ""
     }
@@ -61,20 +54,30 @@ struct BookingDetailsView: View {
     }
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             pageBg.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                headerBar
+                // Brown bar only — same height as RestaurantDetailView / ActivityDetailView (90pt); logo in overlay.
+                brandBrown
+                    .ignoresSafeArea(edges: .top)
+                    .frame(height: 90)
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
+                        Text(isArabic ? "تفاصيل الحجز" : "Booking Details")
+                            .font(.custom("ExpoArabic-Medium", size: 20))
+                            .foregroundColor(textGreen)
+                            .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
+                            .padding(.horizontal, 21)
+                            .padding(.top, 14)
+
                         bookingCard
 
                         Text(isArabic ? "خدمات إضافية" : "Additional Services")
                             .font(.custom("ExpoArabic-Medium", size: 10))
                             .foregroundColor(textGreen.opacity(0.79))
-                            .padding(.top, 28)
+                            .padding(.top, 16)
                             .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
                             .padding(.horizontal, 21)
 
@@ -116,9 +119,9 @@ struct BookingDetailsView: View {
                             )
                         }
                         .buttonStyle(.plain)
-                        .padding(.top, 12)
+                        .padding(.top, 8)
                         .padding(.horizontal, 21)
-                        .padding(.bottom, 24)
+                        .padding(.bottom, 20)
                     }
                     .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
                 }
@@ -152,6 +155,47 @@ struct BookingDetailsView: View {
                 bottomNav
             }
             .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
+
+            // Header chrome — back + logo + menu (same as RestaurantDetailView).
+            VStack {
+                HStack(alignment: .center) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 22, weight: .medium))
+                            .foregroundColor(.white)
+                            .flipsForRightToLeftLayoutDirection(false)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    Image("mrasem-logo")
+                        .resizable()
+                        .renderingMode(.original)
+                        .scaledToFit()
+                        .frame(height: 50)
+
+                    Spacer()
+
+                    Button(action: {}) {
+                        Image("menu-icon")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 28, height: 20)
+                    }
+                    .frame(width: 44, height: 44)
+                    .buttonStyle(.plain)
+                }
+                .environment(\.layoutDirection, .leftToRight)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+
+                Spacer()
+            }
+            .allowsHitTesting(true)
+            .zIndex(10)
         }
         .coordinateSpace(name: Self.rootCoordinateSpaceName)
         .navigationBarHidden(true)
@@ -164,49 +208,13 @@ struct BookingDetailsView: View {
                 AdditionalServicesPopupView(
                     isPresented: $showAdditionalServicesPopup,
                     selection: $selectedAdditionalServices,
-                    dropdownTopInset: additionalServicesFieldFrame.maxY
+                    fieldFrame: additionalServicesFieldFrame
                 )
                 .transition(.opacity)
                 .zIndex(1)
             }
         }
         .animation(.easeInOut(duration: 0.25), value: showAdditionalServicesPopup)
-    }
-
-    private var headerBar: some View {
-        ZStack(alignment: isArabic ? .bottomTrailing : .bottomLeading) {
-            VStack(alignment: isArabic ? .trailing : .leading, spacing: 0) {
-                HStack(alignment: .center) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 22, weight: .medium))
-                            .foregroundColor(Color(red: 0xF3 / 255.0, green: 0xF3 / 255.0, blue: 0xF3 / 255.0))
-                            .flipsForRightToLeftLayoutDirection(false)
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    Spacer()
-                }
-                .environment(\.layoutDirection, .leftToRight)
-                .padding(.horizontal, 8)
-                .padding(.top, 8)
-
-                Spacer(minLength: 0)
-
-                Text(isArabic ? "تفاصيل الحجز" : "Booking Details")
-                    .font(.custom("ExpoArabic-Medium", size: 20))
-                    .foregroundColor(Color(red: 0xF3 / 255.0, green: 0xF3 / 255.0, blue: 0xF3 / 255.0))
-                    .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
-                    .padding(isArabic ? .trailing : .leading, 21)
-                    .padding(.bottom, 18)
-            }
-        }
-        .frame(height: 172)
-        .frame(maxWidth: .infinity)
-        .background {
-            brandBrown.ignoresSafeArea(edges: .top)
-        }
     }
 
     private var bookingCard: some View {
@@ -227,32 +235,21 @@ struct BookingDetailsView: View {
                 .font(.custom("ExpoArabic-Medium", size: 24))
                 .foregroundColor(textGreen)
                 .padding(.top, 16)
+                .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
 
-            if !displaySubtitle.isEmpty {
-                HStack(spacing: 6) {
-                    Image(restaurant != nil ? "fork-knife-icon" : "location-icon")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 14, height: 14)
-                    Text(displaySubtitle)
-                        .font(.custom("ExpoArabic-Medium", size: 12))
-                        .foregroundColor(textGreen.opacity(0.7))
-                }
-                .padding(.top, 6)
-            }
-
-            Divider().padding(.top, 16)
-
+            // Figma 1017:2086 — no cuisine/category under title; icon rows only (date → time → place → passengers).
             detailRow(icon: "booking-calendar", text: dateString)
+                .padding(.top, 16)
+            // Asset names: `booking-passengers` = clock art, `booking-clock` = pin, `booking-fork` = guests (see BookingConfirmationView).
             detailRow(icon: "booking-passengers", text: selectedTime)
                 .padding(.top, 14)
-            detailRow(icon: "booking-clock", text: selectedBranch)
+            detailRow(icon: "booking-clock", text: selectedBranch, underline: true)
                 .padding(.top, 14)
             detailRow(
                 icon: "booking-fork",
                 text: isArabic
-                    ? (quantity == 1 ? "حتى ضيف واحد" : "حتى \(quantity) ضيوف")
-                    : "Up to \(quantity) guests"
+                    ? (quantity == 1 ? "حتى راكب واحد" : "حتى \(quantity) ركاب")
+                    : (quantity == 1 ? "Up to 1 passenger" : "Up to \(quantity) passengers")
             )
                 .padding(.top, 14)
         }
@@ -266,7 +263,7 @@ struct BookingDetailsView: View {
         .padding(.top, 20)
     }
 
-    private func detailRow(icon: String, text: String) -> some View {
+    private func detailRow(icon: String, text: String, underline: Bool = false) -> some View {
         HStack(spacing: 10) {
             Image(icon)
                 .resizable()
@@ -276,7 +273,9 @@ struct BookingDetailsView: View {
             Text(text)
                 .font(.custom("ExpoArabic-Medium", size: 11))
                 .foregroundColor(textGreen)
+                .underline(underline)
         }
+        .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
     }
 
     private var bottomNav: some View {

@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Invitations — Sent / Received (Figma 1202:7592 empty Sent, 1307:51434 pending Sent, 1202:9244 Received, respond flow). Arabic copy 1331:25391; header/nav/FAB/segment (AR) use brown `#31231b`.
+/// Invitations — Sent / Received (Figma 1202:7592 empty Sent, 1307:51434 pending Sent, 1202:9244 Received, respond flow).
+/// English invitation cards: 1044:3165, 1056:3337, 1057:3417 (sent); 1174:16585 (received). Arabic: 1331:25391 / 1077:*.
 struct InvitationsView: View {
     @Environment(\.openURL) private var openURL
     @EnvironmentObject private var invitationStore: InvitationStore
@@ -26,13 +27,23 @@ struct InvitationsView: View {
     private let pendingBadgeBg = Color(red: 255 / 255.0, green: 193 / 255.0, blue: 7 / 255.0)
     private let pendingBadgeText = Color(red: 120 / 255.0, green: 91 / 255.0, blue: 4 / 255.0)
     private let acceptedBadgeBg = Color(red: 0x50 / 255.0, green: 0x8B / 255.0, blue: 0x6C / 255.0)
-    private let declinedBadgeBg = Color(red: 0xFF / 255.0, green: 0xEB / 255.0, blue: 0xEE / 255.0)
-    private let declinedBadgeText = Color(red: 0xC6 / 255.0, green: 0x28 / 255.0, blue: 0x28 / 255.0)
+    /// Figma 1077:7423 — declined pill `#bf5151` / `#811414`.
+    private let declinedBadgeBg = Color(red: 0xBF / 255.0, green: 0x51 / 255.0, blue: 0x51 / 255.0)
+    private let declinedBadgeText = Color(red: 0x81 / 255.0, green: 0x14 / 255.0, blue: 0x14 / 255.0)
 
     private var sentList: [SentInvitation] { invitationStore.sentInvitations }
     private var receivedList: [ReceivedInvitation] { invitationStore.receivedInvitations }
 
     private var isArabic: Bool { languageManager.current == .arabic }
+
+    private var receivedTabHeight: CGFloat {
+        let awaiting = receivedList.contains { $0.userResponse == .awaiting }
+        if awaiting {
+            // Figma 1077:7537 / EN parity — card + inline Accept/Decline (~28pt pills).
+            return isArabic ? 540 : 530
+        }
+        return isArabic ? 470 : 455
+    }
 
     private var activePage: Binding<Int> {
         segment == .sent ? $pageSent : $pageReceived
@@ -50,16 +61,14 @@ struct InvitationsView: View {
                         .padding(.top, 22)
                         .padding(.bottom, 16)
 
-                    ScrollView(.vertical, showsIndicators: false) {
-                        VStack(spacing: 0) {
-                            if segment == .sent {
-                                sentContent
-                            } else {
-                                receivedContent
-                            }
+                    VStack(spacing: 0) {
+                        if segment == .sent {
+                            sentContent
+                        } else {
+                            receivedContent
                         }
-                        .padding(.bottom, 24)
                     }
+                    .padding(.bottom, 24)
                     .background(pageBg)
 
                     Spacer(minLength: 0)
@@ -108,6 +117,9 @@ struct InvitationsView: View {
             sentEmptyState
                 .padding(.top, 40)
                 .padding(.horizontal, 21)
+        } else if sentList.count == 1 {
+            SentInvitationCard(invitation: sentList[0], openURL: openURL, colors: sentCardColors(for: sentList[0].outcome), isArabic: isArabic)
+                .padding(.horizontal, 21)
         } else {
             TabView(selection: $pageSent) {
                     ForEach(Array(sentList.enumerated()), id: \.element.id) { index, inv in
@@ -117,10 +129,10 @@ struct InvitationsView: View {
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-                .frame(height: 440)
+                .frame(height: isArabic ? 480 : 415)
 
             if sentList.count > 1 {
-                pageDots(count: sentList.count, current: pageSent)
+                invitationPaginationDots(count: sentList.count, current: pageSent)
                     .padding(.top, 12)
             }
         }
@@ -184,17 +196,34 @@ struct InvitationsView: View {
         if receivedList.isEmpty {
             receivedEmptyChrome
                 .padding(.top, 48)
+        } else if receivedList.count == 1 {
+            Group {
+                let inv = receivedList[0]
+                if inv.userResponse == .awaiting {
+                    ReceivedInvitationCard(
+                        invitation: inv,
+                        openURL: openURL,
+                        isArabic: isArabic,
+                        onAccept: { invitationStore.applyReceivedResponse(invitationId: inv.id, accept: true) },
+                        onDecline: { invitationStore.applyReceivedResponse(invitationId: inv.id, accept: false) }
+                    )
+                } else {
+                    ReceivedInvitationCard(invitation: inv, openURL: openURL, isArabic: isArabic)
+                }
+            }
+            .padding(.horizontal, 21)
         } else {
             TabView(selection: $pageReceived) {
                     ForEach(Array(receivedList.enumerated()), id: \.element.id) { index, inv in
                         Group {
                             if inv.userResponse == .awaiting {
-                                NavigationLink {
-                                    InvitationRespondView(invitationId: inv.id)
-                                } label: {
-                                    ReceivedInvitationCard(invitation: inv, openURL: openURL, isArabic: isArabic)
-                                }
-                                .buttonStyle(.plain)
+                                ReceivedInvitationCard(
+                                    invitation: inv,
+                                    openURL: openURL,
+                                    isArabic: isArabic,
+                                    onAccept: { invitationStore.applyReceivedResponse(invitationId: inv.id, accept: true) },
+                                    onDecline: { invitationStore.applyReceivedResponse(invitationId: inv.id, accept: false) }
+                                )
                             } else {
                                 ReceivedInvitationCard(invitation: inv, openURL: openURL, isArabic: isArabic)
                             }
@@ -204,10 +233,10 @@ struct InvitationsView: View {
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-                .frame(height: 440)
+                .frame(height: receivedTabHeight)
 
             if receivedList.count > 1 {
-                pageDots(count: receivedList.count, current: pageReceived)
+                invitationPaginationDots(count: receivedList.count, current: pageReceived)
                     .padding(.top, 12)
             }
         }
@@ -224,7 +253,7 @@ struct InvitationsView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
             }
-            pageDots(count: 3, current: 0)
+            invitationPaginationDots(count: 3, current: 0)
                 .padding(.bottom, 32)
         }
         .frame(maxWidth: .infinity)
@@ -277,7 +306,7 @@ struct InvitationsView: View {
     private var segmentControl: some View {
         HStack(spacing: 0) {
             if isArabic {
-                // Figma: المرسلة إلي (leading) · المرسلة (trailing, default active).
+                // Figma 1077:7446 — السجل (left) · المرسلة (right). LTR HStack: السجل first, المرسلة second.
                 segmentReceivedButtonAR
                 segmentSentButtonAR
             } else {
@@ -291,8 +320,8 @@ struct InvitationsView: View {
         .environment(\.layoutDirection, .leftToRight)
     }
 
-    /// English: green active pill; Arabic: brown pill (matches header).
-    private var segmentActiveFill: Color { isArabic ? brandBrown : textGreen }
+    /// Figma 1077:7446 / 7537 — active pill `#213c2e` (same for EN/AR).
+    private var segmentActiveFill: Color { textGreen }
 
     private var segmentSentButtonEN: some View {
         Button {
@@ -340,7 +369,7 @@ struct InvitationsView: View {
         Button {
             withAnimation(.easeInOut(duration: 0.2)) { segment = .received }
         } label: {
-            Text("المرسلة إلي")
+            Text("السجل")
                 .font(.custom("ExpoArabic-Medium", size: 16))
                 .foregroundColor(segment == .received ? .white : segmentInactiveText)
                 .frame(maxWidth: .infinity)
@@ -350,28 +379,32 @@ struct InvitationsView: View {
         .buttonStyle(.plain)
     }
 
-    private func pageDots(count: Int, current: Int) -> some View {
-        let activeDot = isArabic ? brandBrown : textGreen
-        return HStack(spacing: 6) {
+    /// Same as `MyReservationsView.upcomingPaginationDots` — Figma `icons/3dot` (Group 98): 15×15, 10pt gap, `#213C2E` / `#D9D9D9` (1057:3430).
+    private func invitationPaginationDots(count: Int, current: Int) -> some View {
+        HStack(spacing: 10) {
             ForEach(0..<count, id: \.self) { i in
                 Circle()
-                    .fill(i == current ? activeDot : Color.gray.opacity(0.35))
-                    .frame(width: 6, height: 6)
+                    .fill(i == current ? textGreen : segmentTrack)
+                    .frame(width: 15, height: 15)
+                    .accessibilityHidden(true)
             }
         }
         .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Page \(current + 1) of \(count)")
     }
 
+    /// Figma 1112:9736 / 1112:9850 — prominent FAB (larger than 46pt asset; matches “thick +” spec).
     private var sendInviteFAB: some View {
         Button {
             showInvitationComposer = true
         } label: {
             Circle()
                 .fill(brandBrown)
-                .frame(width: 46, height: 46)
+                .frame(width: 58, height: 58)
                 .overlay(
                     Image(systemName: "plus")
-                        .font(.system(size: 20, weight: .bold))
+                        .font(.system(size: 28, weight: .bold))
                         .foregroundColor(.white)
                 )
         }
@@ -409,6 +442,56 @@ struct InvitationsView: View {
     }
 }
 
+// MARK: - Arabic invitation layout (Figma 1077:7323, 7514, 7423, 7537)
+
+private enum InvitationArabicLayout {
+    static func formattedPhoneDisplay(_ raw: String) -> String {
+        InvitationPhoneFormat.display(raw)
+    }
+}
+
+/// Shared phone formatting; English cards (Figma 1044:3165, 1174:16585) use the same `+966 …` spacing.
+private enum InvitationPhoneFormat {
+    static func display(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("+966") else { return trimmed }
+        let suffix = String(trimmed.dropFirst(4).filter(\.isNumber))
+        if suffix.isEmpty { return trimmed }
+        return "+966 " + suffix
+    }
+}
+
+/// English copy for invitation cards (Figma 1044:3165, 1056:3337, 1057:3417 — sent; 1174:16585 — received).
+private enum InvitationEnglishLayout {
+    static func sentRecipientLine(phone: String) -> String {
+        "To: \(InvitationPhoneFormat.display(phone))"
+    }
+
+    /// Figma uses `From :` with a space before the colon.
+    static func receivedInviterLine(phone: String) -> String {
+        "From : \(InvitationPhoneFormat.display(phone))"
+    }
+}
+
+private struct InvitationArabicDetailRow: View {
+    let iconAsset: String
+    let text: String
+    let textGreen: Color
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image(iconAsset)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 16, height: 16)
+            Text(text)
+                .font(.custom("ExpoArabic-Medium", size: 11))
+                .foregroundColor(textGreen)
+            Spacer(minLength: 0)
+        }
+    }
+}
+
 // MARK: - Sent card
 
 private struct SentInvitationCard: View {
@@ -424,13 +507,121 @@ private struct SentInvitationCard: View {
     let isArabic: Bool
 
     private let textGreen = Color(red: 0x21 / 255.0, green: 0x3C / 255.0, blue: 0x2E / 255.0)
+    /// Figma 1044:3171 — location link `#31231b` (not primary green).
+    private let locationLinkColor = Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0)
 
     private var hAlign: HorizontalAlignment { isArabic ? .trailing : .leading }
     private var frameAlign: Alignment { isArabic ? .trailing : .leading }
     private var textAlign: TextAlignment { isArabic ? .trailing : .leading }
 
+    private var displayTitle: String { invitation.arabicPlaceTitle ?? invitation.placeTitle }
+    private var displayDate: String { invitation.arabicDateDisplay ?? invitation.dateDisplay }
+    private var displayTime: String { invitation.arabicTimeDisplay ?? invitation.timeDisplay }
+    private var displayBranch: String { invitation.arabicBranch ?? invitation.branch }
+
+    private var sentStatusArt: String? {
+        nil // Disabled — assets were full-screen screenshots, not badges
+    }
+
     var body: some View {
-        VStack(alignment: hAlign, spacing: 0) {
+        Group {
+            if isArabic {
+                arabicCard
+            } else {
+                englishCard
+            }
+        }
+    }
+
+    private var arabicCard: some View {
+        VStack(alignment: .trailing, spacing: 0) {
+            ZStack(alignment: .topTrailing) {
+                Image(invitation.imageName)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 168)
+                    .clipped()
+                    .cornerRadius(7)
+
+                Text(colors.label)
+                    .font(.custom("ExpoArabic-Medium", size: 14))
+                    .foregroundColor(colors.fg)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .frame(minWidth: 82)
+                    .background(colors.bg)
+                    .cornerRadius(5)
+                    .padding(10)
+            }
+            .padding(.top, 10)
+            .padding(.horizontal, 12)
+
+            Text(displayTitle)
+                .font(.custom("ExpoArabic-Medium", size: 24))
+                .foregroundColor(textGreen)
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.top, 16)
+
+            Text(InvitationArabicLayout.formattedPhoneDisplay(invitation.recipientPhone))
+                .font(.custom("ExpoArabic-Light", size: 14))
+                .foregroundColor(textGreen)
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.top, 6)
+
+            VStack(alignment: .trailing, spacing: 14) {
+                InvitationArabicDetailRow(iconAsset: "invitation-ar-calendar", text: displayDate, textGreen: textGreen)
+                InvitationArabicDetailRow(iconAsset: "invitation-ar-time", text: displayTime, textGreen: textGreen)
+                locationRowArabicSent
+            }
+            .padding(.top, 16)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+
+            if let art = sentStatusArt {
+                Image(art)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 80)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.top, 8)
+            }
+        }
+        .padding(.horizontal, 13)
+        .padding(.bottom, 20)
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .background(Color.white)
+        .cornerRadius(9)
+        .shadow(color: Color.black.opacity(0.06), radius: 6, x: 0, y: 2)
+    }
+
+    private var locationRowArabicSent: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image("invitation-ar-location")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 16, height: 16)
+            Button {
+                let q = displayBranch.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+                if let url = URL(string: "http://maps.apple.com/?q=\(q)") {
+                    openURL(url)
+                }
+            } label: {
+                Text(displayBranch)
+                    .font(.custom("ExpoArabic-Medium", size: 11))
+                    .foregroundColor(textGreen)
+                    .underline()
+                    .multilineTextAlignment(.trailing)
+            }
+            .buttonStyle(.plain)
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// Figma 1044:3165, 1056:3337, 1057:3417 — hero, title, `To:` (12pt muted green), Date | Time row, Location + brown link.
+    private var englishCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topTrailing) {
                 Image(invitation.imageName)
                     .resizable()
@@ -456,95 +647,67 @@ private struct SentInvitationCard: View {
             Text(invitation.placeTitle)
                 .font(.custom("ExpoArabic-Medium", size: 24))
                 .foregroundColor(textGreen)
-                .multilineTextAlignment(textAlign)
-                .frame(maxWidth: .infinity, alignment: frameAlign)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 16)
 
-            if !invitation.subtitle.isEmpty {
-                HStack(spacing: 6) {
-                    if !isArabic {
-                        Image("fork-knife-icon")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 14, height: 14)
-                    }
-                    Text(invitation.subtitle)
-                        .font(.custom("ExpoArabic-Medium", size: 12))
-                        .foregroundColor(textGreen.opacity(0.7))
-                        .multilineTextAlignment(textAlign)
-                    if isArabic {
-                        Image("fork-knife-icon")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 14, height: 14)
-                    }
-                }
-                .padding(.top, 6)
-                .frame(maxWidth: .infinity, alignment: frameAlign)
-            }
-
-            Text(isArabic ? "إلى: \(invitation.recipientPhone)" : "To: \(invitation.recipientPhone)")
+            Text(InvitationEnglishLayout.sentRecipientLine(phone: invitation.recipientPhone))
                 .font(.custom("ExpoArabic-Medium", size: 12))
                 .foregroundColor(textGreen.opacity(0.7))
-                .multilineTextAlignment(textAlign)
-                .frame(maxWidth: .infinity, alignment: frameAlign)
-                .padding(.top, 8)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 14)
 
-            HStack(alignment: .bottom, spacing: 10) {
-                VStack(alignment: hAlign, spacing: 0) {
-                    HStack(alignment: .top, spacing: 36) {
-                        VStack(alignment: hAlign, spacing: 4) {
-                            Text(isArabic ? "التاريخ" : "Date")
-                                .font(.custom("ExpoArabic-Medium", size: 16))
-                                .foregroundColor(textGreen)
-                            Text(invitation.dateDisplay)
-                                .font(.custom("ExpoArabic-Medium", size: 13))
-                                .foregroundColor(textGreen)
-                                .multilineTextAlignment(textAlign)
-                        }
-                        VStack(alignment: hAlign, spacing: 4) {
-                            Text(isArabic ? "الوقت" : "Time")
-                                .font(.custom("ExpoArabic-Medium", size: 16))
-                                .foregroundColor(textGreen)
-                            Text(invitation.timeDisplay)
-                                .font(.custom("ExpoArabic-Medium", size: 13))
-                                .foregroundColor(textGreen)
-                                .multilineTextAlignment(textAlign)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: frameAlign)
-
-                    Text(isArabic ? "الموقع" : "Location")
+            HStack(alignment: .top, spacing: 0) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Date")
                         .font(.custom("ExpoArabic-Medium", size: 16))
                         .foregroundColor(textGreen)
-                        .frame(maxWidth: .infinity, alignment: frameAlign)
-                        .padding(.top, 18)
-
-                    Button {
-                        let q = invitation.branch.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-                        if let url = URL(string: "http://maps.apple.com/?q=\(q)") {
-                            openURL(url)
-                        }
-                    } label: {
-                        Text(invitation.branch)
-                            .font(.custom("ExpoArabic-Medium", size: 13))
-                            .foregroundColor(textGreen)
-                            .underline()
-                            .multilineTextAlignment(textAlign)
-                            .frame(maxWidth: .infinity, alignment: frameAlign)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 4)
+                    Text(invitation.dateDisplay)
+                        .font(.custom("ExpoArabic-Medium", size: 13))
+                        .foregroundColor(textGreen)
+                        .multilineTextAlignment(.leading)
                 }
-                .frame(maxWidth: .infinity, alignment: frameAlign)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                Spacer(minLength: 0)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Time")
+                        .font(.custom("ExpoArabic-Medium", size: 16))
+                        .foregroundColor(textGreen)
+                    Text(invitation.timeDisplay)
+                        .font(.custom("ExpoArabic-Medium", size: 13))
+                        .foregroundColor(textGreen)
+                        .multilineTextAlignment(.leading)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.top, 18)
+            .padding(.top, 32)
+
+            Text("Location")
+                .font(.custom("ExpoArabic-Medium", size: 16))
+                .foregroundColor(textGreen)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 18)
+
+            Button {
+                let q = invitation.branch.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+                if let url = URL(string: "http://maps.apple.com/?q=\(q)") {
+                    openURL(url)
+                }
+            } label: {
+                Text(invitation.branch)
+                    .font(.custom("ExpoArabic-Medium", size: 13))
+                    .foregroundColor(locationLinkColor)
+                    .underline()
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 4)
         }
         .padding(.horizontal, 13)
         .padding(.bottom, 20)
-        .frame(maxWidth: .infinity, alignment: frameAlign)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.white)
         .cornerRadius(9)
         .shadow(color: Color.black.opacity(0.06), radius: 6, x: 0, y: 2)
@@ -557,13 +720,19 @@ private struct ReceivedInvitationCard: View {
     let invitation: ReceivedInvitation
     let openURL: OpenURLAction
     let isArabic: Bool
+    var onAccept: (() -> Void)?
+    var onDecline: (() -> Void)?
 
     private let textGreen = Color(red: 0x21 / 255.0, green: 0x3C / 255.0, blue: 0x2E / 255.0)
+    /// Figma 1174:16585 / 1057:3503 — underlined location `#31231b`.
+    private let locationLinkColor = Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0)
     private let pendingBadgeBg = Color(red: 255 / 255.0, green: 193 / 255.0, blue: 7 / 255.0)
     private let pendingBadgeText = Color(red: 120 / 255.0, green: 91 / 255.0, blue: 4 / 255.0)
     private let acceptedBadgeBg = Color(red: 0x50 / 255.0, green: 0x8B / 255.0, blue: 0x6C / 255.0)
-    private let declinedBadgeBg = Color(red: 0xFF / 255.0, green: 0xEB / 255.0, blue: 0xEE / 255.0)
-    private let declinedBadgeText = Color(red: 0xC6 / 255.0, green: 0x28 / 255.0, blue: 0x28 / 255.0)
+    private let declinedBadgeBg = Color(red: 0xBF / 255.0, green: 0x51 / 255.0, blue: 0x51 / 255.0)
+    private let declinedBadgeText = Color(red: 0x81 / 255.0, green: 0x14 / 255.0, blue: 0x14 / 255.0)
+    private let declineActionRed = Color(red: 0xA7 / 255.0, green: 0x1E / 255.0, blue: 0x1E / 255.0)
+    private let actionPillBg = Color(red: 0xF3 / 255.0, green: 0xF3 / 255.0, blue: 0xF3 / 255.0)
 
     private var badge: (String, Color, Color) {
         switch invitation.userResponse {
@@ -580,8 +749,36 @@ private struct ReceivedInvitationCard: View {
     private var frameAlign: Alignment { isArabic ? .trailing : .leading }
     private var textAlign: TextAlignment { isArabic ? .trailing : .leading }
 
+    private var displayTitle: String { invitation.arabicPlaceTitle ?? invitation.placeTitle }
+    private var displayDate: String { invitation.arabicDateDisplay ?? invitation.dateDisplay }
+    private var displayTime: String { invitation.arabicTimeDisplay ?? invitation.timeDisplay }
+    private var displayBranch: String { invitation.arabicBranch ?? invitation.branch }
+
+    private var receivedStatusArt: String? {
+        guard isArabic else { return nil }
+        switch invitation.userResponse {
+        case .awaiting: return "arabic-pending"
+        case .accepted: return "arabic-accepted"
+        case .declined: return "arabic-declined"
+        }
+    }
+
+    private var showInlineRespond: Bool {
+        invitation.userResponse == .awaiting && onAccept != nil && onDecline != nil
+    }
+
     var body: some View {
-        VStack(alignment: hAlign, spacing: 0) {
+        Group {
+            if isArabic {
+                arabicCard
+            } else {
+                englishCard
+            }
+        }
+    }
+
+    private var arabicCard: some View {
+        VStack(alignment: .trailing, spacing: 0) {
             ZStack(alignment: .topTrailing) {
                 Image(invitation.imageName)
                     .resizable()
@@ -591,14 +788,141 @@ private struct ReceivedInvitationCard: View {
                     .clipped()
                     .cornerRadius(7)
 
-                Text(badge.0)
-                    .font(.custom("ExpoArabic-Medium", size: 14))
-                    .foregroundColor(badge.2)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(badge.1)
+                if !(invitation.userResponse == .awaiting && showInlineRespond) {
+                    Text(badge.0)
+                        .font(.custom("ExpoArabic-Medium", size: 14))
+                        .foregroundColor(badge.2)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                        .background(badge.1)
+                        .cornerRadius(5)
+                        .padding(10)
+                }
+            }
+            .padding(.top, 10)
+            .padding(.horizontal, 12)
+
+            Text(displayTitle)
+                .font(.custom("ExpoArabic-Medium", size: 24))
+                .foregroundColor(textGreen)
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.top, 16)
+
+            Text(InvitationArabicLayout.formattedPhoneDisplay(invitation.inviterPhone))
+                .font(.custom("ExpoArabic-Light", size: 14))
+                .foregroundColor(textGreen)
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.top, 6)
+
+            VStack(alignment: .trailing, spacing: 14) {
+                InvitationArabicDetailRow(iconAsset: "invitation-ar-calendar", text: displayDate, textGreen: textGreen)
+                InvitationArabicDetailRow(iconAsset: "invitation-ar-time", text: displayTime, textGreen: textGreen)
+                locationRowArabicReceived
+            }
+            .padding(.top, 16)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+
+            if showInlineRespond {
+                inlineRespondBar
+            }
+
+            if let art = receivedStatusArt, !showInlineRespond {
+                Image(art)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 80)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.top, 8)
+            }
+        }
+        .padding(.horizontal, 13)
+        .padding(.bottom, 20)
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .background(Color.white)
+        .cornerRadius(9)
+        .shadow(color: Color.black.opacity(0.06), radius: 6, x: 0, y: 2)
+    }
+
+    /// Figma 1077:7788 — `#f3f3f3` pills; decline `#a71e1e`, accept `#213c2e`. Same layout EN/AR (Decline leading).
+    private var inlineRespondBar: some View {
+        HStack(spacing: 13) {
+            Button {
+                onDecline?()
+            } label: {
+                Text(isArabic ? "رفض" : "Decline")
+                    .font(.custom("ExpoArabic-Medium", size: 13))
+                    .foregroundColor(declineActionRed)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 28)
+                    .background(actionPillBg)
                     .cornerRadius(5)
-                    .padding(10)
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                onAccept?()
+            } label: {
+                Text(isArabic ? "قبول" : "Accept")
+                    .font(.custom("ExpoArabic-Medium", size: 13))
+                    .foregroundColor(textGreen)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 28)
+                    .background(actionPillBg)
+                    .cornerRadius(5)
+            }
+            .buttonStyle(.plain)
+        }
+        .environment(\.layoutDirection, .leftToRight)
+        .padding(.top, 16)
+    }
+
+    private var locationRowArabicReceived: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image("invitation-ar-location")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 16, height: 16)
+            Button {
+                let q = displayBranch.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+                if let url = URL(string: "http://maps.apple.com/?q=\(q)") {
+                    openURL(url)
+                }
+            } label: {
+                Text(displayBranch)
+                    .font(.custom("ExpoArabic-Medium", size: 11))
+                    .foregroundColor(textGreen)
+                    .underline()
+                    .multilineTextAlignment(.trailing)
+            }
+            .buttonStyle(.plain)
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// Figma 1174:16585 — same grid as sent; `From :` line (space before colon), location link brown.
+    private var englishCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .topTrailing) {
+                Image(invitation.imageName)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 168)
+                    .clipped()
+                    .cornerRadius(7)
+
+                if !showInlineRespond {
+                    Text(badge.0)
+                        .font(.custom("ExpoArabic-Medium", size: 14))
+                        .foregroundColor(badge.2)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                        .background(badge.1)
+                        .cornerRadius(5)
+                        .padding(10)
+                }
             }
             .padding(.top, 10)
             .padding(.horizontal, 12)
@@ -606,95 +930,71 @@ private struct ReceivedInvitationCard: View {
             Text(invitation.placeTitle)
                 .font(.custom("ExpoArabic-Medium", size: 24))
                 .foregroundColor(textGreen)
-                .multilineTextAlignment(textAlign)
-                .frame(maxWidth: .infinity, alignment: frameAlign)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 16)
 
-            if !invitation.subtitle.isEmpty {
-                HStack(spacing: 6) {
-                    if !isArabic {
-                        Image("fork-knife-icon")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 14, height: 14)
-                    }
-                    Text(invitation.subtitle)
-                        .font(.custom("ExpoArabic-Medium", size: 12))
-                        .foregroundColor(textGreen.opacity(0.7))
-                        .multilineTextAlignment(textAlign)
-                    if isArabic {
-                        Image("fork-knife-icon")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 14, height: 14)
-                    }
-                }
-                .padding(.top, 6)
-                .frame(maxWidth: .infinity, alignment: frameAlign)
-            }
-
-            Text(isArabic ? "من: \(invitation.inviterPhone)" : "From: \(invitation.inviterPhone)")
+            Text(InvitationEnglishLayout.receivedInviterLine(phone: invitation.inviterPhone))
                 .font(.custom("ExpoArabic-Medium", size: 12))
                 .foregroundColor(textGreen.opacity(0.7))
-                .multilineTextAlignment(textAlign)
-                .frame(maxWidth: .infinity, alignment: frameAlign)
-                .padding(.top, 8)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 14)
 
-            HStack(alignment: .bottom, spacing: 10) {
-                VStack(alignment: hAlign, spacing: 0) {
-                    HStack(alignment: .top, spacing: 36) {
-                        VStack(alignment: hAlign, spacing: 4) {
-                            Text(isArabic ? "التاريخ" : "Date")
-                                .font(.custom("ExpoArabic-Medium", size: 16))
-                                .foregroundColor(textGreen)
-                            Text(invitation.dateDisplay)
-                                .font(.custom("ExpoArabic-Medium", size: 13))
-                                .foregroundColor(textGreen)
-                                .multilineTextAlignment(textAlign)
-                        }
-                        VStack(alignment: hAlign, spacing: 4) {
-                            Text(isArabic ? "الوقت" : "Time")
-                                .font(.custom("ExpoArabic-Medium", size: 16))
-                                .foregroundColor(textGreen)
-                            Text(invitation.timeDisplay)
-                                .font(.custom("ExpoArabic-Medium", size: 13))
-                                .foregroundColor(textGreen)
-                                .multilineTextAlignment(textAlign)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: frameAlign)
-
-                    Text(isArabic ? "الموقع" : "Location")
+            HStack(alignment: .top, spacing: 0) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Date")
                         .font(.custom("ExpoArabic-Medium", size: 16))
                         .foregroundColor(textGreen)
-                        .frame(maxWidth: .infinity, alignment: frameAlign)
-                        .padding(.top, 18)
-
-                    Button {
-                        let q = invitation.branch.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-                        if let url = URL(string: "http://maps.apple.com/?q=\(q)") {
-                            openURL(url)
-                        }
-                    } label: {
-                        Text(invitation.branch)
-                            .font(.custom("ExpoArabic-Medium", size: 13))
-                            .foregroundColor(textGreen)
-                            .underline()
-                            .multilineTextAlignment(textAlign)
-                            .frame(maxWidth: .infinity, alignment: frameAlign)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 4)
+                    Text(invitation.dateDisplay)
+                        .font(.custom("ExpoArabic-Medium", size: 13))
+                        .foregroundColor(textGreen)
+                        .multilineTextAlignment(.leading)
                 }
-                .frame(maxWidth: .infinity, alignment: frameAlign)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                Spacer(minLength: 0)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Time")
+                        .font(.custom("ExpoArabic-Medium", size: 16))
+                        .foregroundColor(textGreen)
+                    Text(invitation.timeDisplay)
+                        .font(.custom("ExpoArabic-Medium", size: 13))
+                        .foregroundColor(textGreen)
+                        .multilineTextAlignment(.leading)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.top, 18)
+            .padding(.top, 32)
+
+            Text("Location")
+                .font(.custom("ExpoArabic-Medium", size: 16))
+                .foregroundColor(textGreen)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 18)
+
+            Button {
+                let q = invitation.branch.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+                if let url = URL(string: "http://maps.apple.com/?q=\(q)") {
+                    openURL(url)
+                }
+            } label: {
+                Text(invitation.branch)
+                    .font(.custom("ExpoArabic-Medium", size: 13))
+                    .foregroundColor(locationLinkColor)
+                    .underline()
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 4)
+
+            if showInlineRespond {
+                inlineRespondBar
+            }
         }
         .padding(.horizontal, 13)
         .padding(.bottom, 20)
-        .frame(maxWidth: .infinity, alignment: frameAlign)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.white)
         .cornerRadius(9)
         .shadow(color: Color.black.opacity(0.06), radius: 6, x: 0, y: 2)
@@ -896,20 +1196,28 @@ struct InvitationsNavigationLink: View {
             dateDisplay: "Jan 3",
             timeDisplay: "8:00PM",
             branch: "Albasateen Mall, Alrawdha",
-            recipientPhone: "+966588762140"
+            recipientPhone: "+966588762140",
+            arabicPlaceTitle: "مطعم ميازو",
+            arabicDateDisplay: "3 يناير",
+            arabicTimeDisplay: "1:00 م",
+            arabicBranch: "مول البساتين، الروضة"
         ),
     ]
     let received: [ReceivedInvitation] = [
         ReceivedInvitation(
             id: "r1",
             userResponse: .awaiting,
-            placeTitle: "Khemah The Groves",
-            subtitle: "Outdoor dining",
-            imageName: "riyadh-khemah-groves",
-            dateDisplay: "Feb 12",
-            timeDisplay: "7:00PM",
-            branch: "Riyadh Park",
-            inviterPhone: "+966555010203",
+            placeTitle: "Myazu Restaurant",
+            subtitle: "Japanese, Sushi",
+            imageName: "restaurant-myazu",
+            dateDisplay: "Jan 3",
+            timeDisplay: "8:00PM",
+            branch: "Albasateen Mall, Alrawdha",
+            inviterPhone: "+966587469928",
+            arabicPlaceTitle: "مطعم ميازو",
+            arabicDateDisplay: "3 يناير",
+            arabicTimeDisplay: "1:00 م",
+            arabicBranch: "مول البساتين، الروضة",
             linkedSentId: nil
         ),
     ]

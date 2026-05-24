@@ -2,9 +2,12 @@ import SwiftUI
 
 struct PhoneLoginView: View {
     @EnvironmentObject private var languageManager: LanguageManager
+    @EnvironmentObject private var reservationStore: ReservationStore
+    @EnvironmentObject private var invitationStore: InvitationStore
     @State private var countryCode: String = "+966"
     @State private var phoneNumber: String = ""
     @State private var rememberMe: Bool = false
+    @State private var goToDemoApp: Bool = false
     
     private let brandBrown = Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0)
     private let textGreen = Color(red: 0x21 / 255.0, green: 0x3C / 255.0, blue: 0x2E / 255.0)
@@ -26,18 +29,22 @@ struct PhoneLoginView: View {
                     Color.white
                         .clipShape(RoundedCorner(radius: 50, corners: [.topLeft, .topRight]))
 
+                    ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 0) {
-                        PhoneIcon()
-                            .frame(width: 94, height: 166)
-                            .padding(.top, 45)
+                        // Icon + headline: explicit stack + clip so the 94×166 path cannot overlap the title
+                        VStack(spacing: 28) {
+                            PhoneIcon()
+                                .accessibilityHidden(true)
 
-                        Text(languageManager.current == .arabic ? "أدخل رقم جوالك" : "Enter your Mobile Number")
-                            .font(.custom("ExpoArabic-Medium", size: 16))
-                            .fontWeight(.medium)
-                            .foregroundColor(brandBrown)
-                            .multilineTextAlignment(.center)
-                            .frame(width: 297)
-                            .padding(.top, 33)
+                            Text(languageManager.current == .arabic ? "أدخل رقم جوالك" : "Enter your Mobile Number")
+                                .font(.custom("ExpoArabic-Medium", size: 16))
+                                .fontWeight(.medium)
+                                .foregroundColor(brandBrown)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: 297)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.top, 35)
 
                         VStack(alignment: .leading, spacing: 0) {
                             Text(languageManager.current == .arabic ? "رقم الجوال" : "Phone Number")
@@ -48,7 +55,7 @@ struct PhoneLoginView: View {
                                 .frame(maxWidth: .infinity, alignment: languageManager.current == .arabic ? .trailing : .leading)
 
                             HStack(spacing: 12) {
-                                TextField("", text: $countryCode)
+                                Text(countryCode)
                                     .font(.custom("ExpoArabic-Medium", size: 14))
                                     .fontWeight(.medium)
                                     .foregroundColor(brandBrown)
@@ -56,9 +63,8 @@ struct PhoneLoginView: View {
                                     .background(Color.white)
                                     .overlay(RoundedRectangle(cornerRadius: 7).stroke(brandBrown, lineWidth: 1))
                                     .cornerRadius(7)
-                                    .multilineTextAlignment(.center)
 
-                                TextField("", text: $phoneNumber)
+                                TextField("5XXXXXXXX", text: $phoneNumber)
                                     .font(.custom("ExpoArabic-Medium", size: 14))
                                     .fontWeight(.medium)
                                     .foregroundColor(textGreen)
@@ -74,7 +80,7 @@ struct PhoneLoginView: View {
                         .frame(width: 287, alignment: languageManager.current == .arabic ? .trailing : .leading)
                         .frame(maxWidth: .infinity, alignment: languageManager.current == .arabic ? .trailing : .leading)
                         .padding(.horizontal, 44)
-                        .padding(.top, 86)
+                        .padding(.top, 30)
 
                         HStack(spacing: 6) {
                             Button(action: { rememberMe.toggle() }) {
@@ -108,7 +114,7 @@ struct PhoneLoginView: View {
                                 .background(brandBrown)
                                 .cornerRadius(13)
                         }
-                        .padding(.top, 106)
+                        .padding(.top, 60)
 
                         // Next + FaceID — brown bg, white text
                         HStack(spacing: 18) {
@@ -134,19 +140,55 @@ struct PhoneLoginView: View {
                         }
                         .padding(.top, 15)
 
-                        Spacer()
+                        if AuthenticationManager.shared.isDemoModeEnabled {
+                            Button {
+                                AuthenticationManager.shared.enterDemoGuestMode()
+                                goToDemoApp = true
+                            } label: {
+                                Text(languageManager.current == .arabic ? "تجربة التطبيق" : "Try the app (demo)")
+                                    .font(.custom("ExpoArabic-Medium", size: 14))
+                                    .fontWeight(.medium)
+                                    .foregroundColor(textGreen)
+                                    .underline()
+                            }
+                            .padding(.top, 20)
+
+                            NavigationLink(
+                                destination: CategorySelectionView()
+                                    .environmentObject(languageManager)
+                                    .environmentObject(reservationStore)
+                                    .environmentObject(invitationStore),
+                                isActive: $goToDemoApp
+                            ) { EmptyView() }
+                            .accessibilityHidden(true)
+                        }
+
+                        Color.clear.frame(height: 32)
+                    }
                     }
                 }
                 .padding(.top, 47)
             }
             .ignoresSafeArea(edges: .bottom)
         }
+        .onTapGesture {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
+        .ignoresSafeArea(.keyboard)
     }
 }
 
 struct PhoneIcon: View {
+    private static let pathWidth: CGFloat = 94.0667
+    private static let pathHeight: CGFloat = 166
+    private static let displayWidth: CGFloat = 70
+    private static let displayHeight: CGFloat = 90
+
     var body: some View {
-        ZStack {
+        Color.clear
+            .frame(width: Self.displayWidth, height: Self.displayHeight)
+            .overlay {
+                ZStack {
             Path { path in
                 path.move(to: CGPoint(x: 80.2333, y: 0))
                 path.addLine(to: CGPoint(x: 13.8333, y: 0))
@@ -189,7 +231,11 @@ struct PhoneIcon: View {
                 path.closeSubpath()
             }
             .fill(Color(red: 0x31 / 255.0, green: 0x23 / 255.0, blue: 0x1B / 255.0))
-        }
+                }
+                .frame(width: Self.pathWidth, height: Self.pathHeight)
+                .scaleEffect(min(Self.displayWidth / Self.pathWidth, Self.displayHeight / Self.pathHeight))
+            }
+            .clipped()
     }
 }
 
@@ -330,4 +376,7 @@ struct FaceIDIcon: View {
 
 #Preview {
     PhoneLoginView()
+        .environmentObject(LanguageManager())
+        .environmentObject(ReservationStore())
+        .environmentObject(InvitationStore())
 }

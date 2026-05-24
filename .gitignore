@@ -1,4 +1,29 @@
-# Xcode
+# === Environment & Secrets ===
+.env
+.env.*
+*.env
+!.env.example
+
+# === IDE & Editor ===
+.idea/
+.vscode/
+.cursor/
+.kiro/
+*.swp
+*.swo
+*~
+buildServer.json
+cursorrules.md
+
+# === macOS ===
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# === Xcode ===
 build/
 DerivedData/
 *.pbxuser
@@ -17,50 +42,75 @@ xcuserdata/
 *.xcworkspace
 !default.xcworkspace
 
-# Swift Package Manager
+# === Swift Package Manager ===
 .build/
 Packages/
 Package.pins
 Package.resolved
 .swiftpm/
 
-# CocoaPods
+# === CocoaPods ===
 Pods/
 Podfile.lock
 
-# Carthage
-Carthage/Build/
-
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-._*
-.Spotlight-V100
-.Trashes
-
-# IDEs
-.idea/
-*.swp
-*.swo
-*~
-
-# Environment
-.env
-.env.local
-*.env
-
-# Node (for admin dashboard later)
+# === Node.js ===
 node_modules/
 npm-debug.log
 yarn-error.log
+package-lock.json
 
-# Figma MCP pipeline (saved context dumps; optional to commit)
+# === Next.js ===
+mrasem-admin-next/.next/
+mrasem-admin-next/.vercel/
+
+# === Builder.io / Config secrets ===
+.config/
+
+# === Figma cache ===
 .figma-cache/
 
-# Misc
+# === Database files ===
+*.db
+*.sqlite
+*.sqlite3
+
+# === Invoices & Client docs (confidential) ===
+*.pdf
+Mrasem_MOM_Invoice_2026.html
+CLIENT-MEETING-NOTES.md
+CLIENT-REQUIREMENTS-DISCUSSION.md
+
+# === Internal dev guides ===
+KIRO-*.md
+MRASEM-PRODUCTION-GUIDE.md
+MRASEM-PRODUCTION-CHECKLIST.md
+REQUIREMENTS-DESIGN-TASKS.md
+HOW-SYSTEMS-WORK.md
+KIRO-PLANNER-PROMPT.md
+AUTHENTICATION-GUIDE.md
+BACKEND-SMS-INTEGRATION.md
+CUSTOM-FONTS-GUIDE.md
+FIGMA-TO-SWIFTUI-GUIDE.md
+SCREEN-NAVIGATION-GUIDE.md
+docs/MRASEM_INVITE_WEB_AND_UNIVERSAL_LINKS.md
+
+# === Scripts (internal tooling) ===
+scripts/
+gen_invoice_v6.py
+generate_mom.py
+
+# === Uploaded images (served from Supabase storage in prod) ===
+admin-panel/uploads/*
+!admin-panel/uploads/.gitkeep
+
+# === Build artifacts ===
+admin-panel/client/dist/
 *.log
 *.tmp
 
-# Removed from repo (was nested git project)
-Interview/
+# === Misc generated/internal files ===
+svg-*.js
+OnboardingView2_backup.swift
+PASTE-INTO-SUPABASE.sql
+*.ipynb
+Mrasem/Mrasem/instructions.md

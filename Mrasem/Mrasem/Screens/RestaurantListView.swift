@@ -59,7 +59,7 @@ struct RestaurantListView: View {
                                             .frame(width: 28, height: 20)
                                     }
                                     Spacer(minLength: 0)
-                                    Text("أهلا عبدالله!")
+                                    Text("أهلا \(AuthenticationManager.shared.userName ?? AuthenticationManager.shared.phoneNumber ?? "")!")
                                         .font(.custom("ExpoArabic-Medium", size: 12))
                                         .fontWeight(.medium)
                                         .foregroundColor(.white)
@@ -88,7 +88,7 @@ struct RestaurantListView: View {
                                                 .frame(width: 36, height: 36)
                                         }
                                     }
-                                    Text("Hi Abdullah")
+                                    Text("Hi \(AuthenticationManager.shared.userName ?? AuthenticationManager.shared.phoneNumber ?? "")")
                                         .font(.custom("ExpoArabic-Medium", size: 12))
                                         .fontWeight(.medium)
                                         .foregroundColor(.white)

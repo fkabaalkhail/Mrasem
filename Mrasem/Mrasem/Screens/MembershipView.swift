@@ -8,6 +8,8 @@ struct MembershipView: View {
     @State private var walletAlertMessage: String?
 
     private var isArabic: Bool { languageManager.current == .arabic }
+    private var displayPhone: String { AuthenticationManager.shared.phoneNumber ?? "—" }
+    private var membershipId: String { AuthenticationManager.shared.membershipNumber ?? "—" }
 
     private let brandBrown = Color(red: 0x31/255, green: 0x23/255, blue: 0x1B/255)
     private let panelHairline = Color.black.opacity(0.16)
@@ -18,47 +20,79 @@ struct MembershipView: View {
             Color.white.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                headerBar
+                brandBrown
+                    .ignoresSafeArea(edges: .top)
+                    .frame(height: 90)
 
-                ZStack(alignment: .top) {
-                    Color.white
+                VStack(spacing: 0) {
+                    decorativeStrip
 
-                    VStack(spacing: 0) {
-                        decorativeStrip
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(alignment: isArabic ? .trailing : .leading, spacing: 0) {
+                            Text(isArabic ? "عضويتي" : "My Membership")
+                                .font(.custom("ExpoArabic-Medium", size: 20))
+                                .foregroundColor(brandBrown)
+                                .padding(.leading, isArabic ? 0 : 13)
+                                .padding(.trailing, isArabic ? 13 : 0)
+                                .padding(.top, 18)
+                                .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
 
-                        ScrollView(.vertical, showsIndicators: false) {
-                            VStack(alignment: isArabic ? .trailing : .leading, spacing: 0) {
-                                Text(isArabic ? "عضويتي" : "My Membership")
-                                    .font(.custom("ExpoArabic-Medium", size: 20))
-                                    .foregroundColor(brandBrown)
-                                    .padding(.leading, isArabic ? 0 : 13)
-                                    .padding(.trailing, isArabic ? 13 : 0)
-                                    .padding(.top, 18)
-                                    .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
+                            membershipCard
+                                .padding(.top, 20)
 
-                                membershipCard
-                                    .padding(.top, 20)
-
-                                appleWalletSection
-                                    .padding(.top, 12)
-                            }
-                            .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
-                            .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
-                            .padding(.bottom, 40)
+                            appleWalletSection
+                                .padding(.top, 12)
                         }
+                        .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
+                        .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
+                        .padding(.bottom, 40)
                     }
-
-                    HStack(spacing: 0) {
-                        panelHairline.frame(width: 1)
-                        Spacer(minLength: 0)
-                        panelHairline.frame(width: 1)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .allowsHitTesting(false)
                 }
             }
+
+            // Header overlay — same as activity / season / restaurant detail (Figma 1366:12306).
+            VStack {
+                HStack(alignment: .center) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 22, weight: .medium))
+                            .foregroundColor(.white)
+                            .flipsForRightToLeftLayoutDirection(false)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    Image("mrasem-logo")
+                        .resizable()
+                        .renderingMode(.original)
+                        .scaledToFit()
+                        .frame(height: 50)
+
+                    Spacer()
+
+                    Button(action: {}) {
+                        Image("menu-icon")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 28, height: 20)
+                    }
+                    .frame(width: 44, height: 44)
+                    .buttonStyle(.plain)
+                }
+                .environment(\.layoutDirection, .leftToRight)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+
+                Spacer()
+            }
+            .allowsHitTesting(true)
+            .zIndex(10)
         }
         .navigationBarHidden(true)
+        .navigationBarBackButtonHidden(true)
         .alert("Apple Wallet", isPresented: Binding(
             get: { walletAlertMessage != nil },
             set: { if !$0 { walletAlertMessage = nil } }
@@ -106,36 +140,6 @@ struct MembershipView: View {
         }
     }
 
-    // MARK: - Header
-
-    private var headerBar: some View {
-        ZStack {
-            brandBrown.ignoresSafeArea(edges: .top)
-
-            HStack {
-                Button(action: { dismiss() }) {
-                    Image("profile-back-arrow")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 24, height: 24)
-                }
-
-                Spacer()
-
-                Image("mrasem-logo")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(height: 50)
-
-                Spacer()
-
-                Color.clear.frame(width: 24, height: 24)
-            }
-            .padding(.horizontal, 24)
-        }
-        .frame(height: 126)
-    }
-
     // MARK: - Decorative geometric strip
 
     private var decorativeStrip: some View {
@@ -178,10 +182,11 @@ struct MembershipView: View {
 
                     Image("mrasem-logo")
                         .resizable()
-                        .aspectRatio(contentMode: .fit)
+                        .renderingMode(.original)
+                        .scaledToFit()
                         .frame(height: 44)
                 }
-                .frame(height: 98)
+                .frame(height: 76)
 
                 ZStack {
                     Color.white
@@ -212,7 +217,7 @@ struct MembershipView: View {
                         .padding(.top, 10)
                         .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
 
-                    Text(isArabic ? "عبدالله" : "Abdullah Khalid")
+                    Text(displayPhone)
                         .font(.custom("ExpoArabic-Light", size: 28))
                         .foregroundColor(.white)
                         .lineLimit(1)
@@ -225,7 +230,7 @@ struct MembershipView: View {
                         .padding(.top, 16)
                         .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
 
-                    Text("7826550197")
+                    Text(membershipId)
                         .font(.custom("ExpoArabic-Medium", size: 14))
                         .foregroundColor(.white)
                         .tracking(0.028)
@@ -243,7 +248,7 @@ struct MembershipView: View {
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 118, height: 118)
 
-                        Text("7826550197")
+                        Text(membershipId)
                             .font(.custom("ExpoArabic-Medium", size: 14))
                             .foregroundColor(brandBrown)
                             .tracking(0.028)

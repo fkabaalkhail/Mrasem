@@ -8,6 +8,7 @@ struct AppCoordinator: View {
     @State private var currentScreen: AppScreen = .splash
     @State private var nextScreen: AppScreen? = nil
     @State private var slideOffset: CGFloat = 0
+    @State private var logoutObserver: Any?
     
     enum AppScreen: Int {
         case splash = 0
@@ -37,6 +38,17 @@ struct AppCoordinator: View {
         .environmentObject(languageManager)
         .environmentObject(reservationStore)
         .environmentObject(invitationStore)
+        .onAppear {
+            logoutObserver = NotificationCenter.default.addObserver(
+                forName: Notification.Name("userDidLogout"),
+                object: nil,
+                queue: .main
+            ) { _ in
+                currentScreen = .phoneLogin
+                nextScreen = nil
+                slideOffset = 0
+            }
+        }
     }
     
     @ViewBuilder
@@ -46,9 +58,10 @@ struct AppCoordinator: View {
             case .splash:
                 SplashScreenView()
                     .onAppear {
-                        StorePrefetch.warmAll()
+                        // Prefetch in background, don't block UI
+                        Task.detached { await StorePrefetch.warmAll() }
                         if currentScreen == .splash {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                                 transitionToScreen(.onboarding, screenWidth: geometry.size.width)
                             }
                         }

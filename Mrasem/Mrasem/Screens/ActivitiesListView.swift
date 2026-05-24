@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Activities & tours — List: same mini `ActivityGridCard` grid + nearby row for **English and Arabic** (no Mecca-only hero). Copy: `Activity` + `PublicListingArabicFallback` (Figma detail strings).
+/// Activities & tours — List: horizontal `ActivityGridCard` grid (two rows) when 2+ items; **one large featured card** (single row, Figma 1252:17748 style) when exactly one activity matches.
 // MARK: - Color helper
 
 private extension Color {
@@ -58,6 +58,9 @@ struct ActivitiesListView: View {
         if isArabic { return "الأنشطة القريبة منك" }
         return "Nearby Activities"
     }
+
+    /// One activity → large card (not a sparse 2-row grid with an empty second row).
+    private var useSingleLargeActivityLayout: Bool { gridActivities.count == 1 }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -131,7 +134,7 @@ struct ActivitiesListView: View {
     // MARK: - Header (Figma 556:1976 — matches RestaurantList / SeasonEvents: greeting beside profile, not centered)
 
     private var greetingText: String {
-        isArabic ? "أهلا عبدالله!" : "Hi Abdullah"
+        isArabic ? "أهلا \(AuthenticationManager.shared.userName ?? AuthenticationManager.shared.phoneNumber ?? "")!" : "Hi \(AuthenticationManager.shared.userName ?? AuthenticationManager.shared.phoneNumber ?? "")"
     }
 
     private var searchPlaceholder: String {
@@ -247,14 +250,18 @@ struct ActivitiesListView: View {
     private var bodySection: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
-                activityGrid
+                if useSingleLargeActivityLayout, let only = gridActivities.first {
+                    singleLargeActivitySection(activity: only)
+                } else {
+                    activityGrid
+                }
 
                 Text(nearbySectionTitle)
                     .font(.custom("ExpoArabic-Medium", size: 20))
                     .foregroundColor(.black)
                     .frame(maxWidth: .infinity, alignment: isArabic ? .trailing : .leading)
                     .padding(.horizontal, 21)
-                    .padding(.top, 24)
+                    .padding(.top, useSingleLargeActivityLayout ? 28 : 24)
 
                 nearbyActivityRow
                     .padding(.top, 14)
@@ -264,6 +271,26 @@ struct ActivitiesListView: View {
         .refreshable {
             await store.refresh(city: selectedCity)
         }
+    }
+
+    // MARK: - Single activity — one large row (Figma 1252:17748)
+
+    private func singleLargeActivitySection(activity: Activity) -> some View {
+        HStack {
+            Spacer(minLength: 0)
+            NavigationLink(destination: ActivityDetailView(activity: activity)) {
+                ActivityLargeFeaturedCard(
+                    activity: activity,
+                    isFavorite: favorites.contains(activity.id),
+                    onToggleFavorite: { toggle(activity.id) },
+                    isArabic: isArabic
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
+            Spacer(minLength: 0)
+        }
+        .padding(.top, 12)
+        .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
     }
 
     // MARK: - Activity grid
@@ -461,6 +488,88 @@ struct ActivityGridCard: View {
         .background(Color.white)
         .cornerRadius(max(10, 16 * scale))
         .shadow(color: Color.black.opacity(0.07), radius: 6, x: 0, y: 3)
+        .contentShape(Rectangle())
+        .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
+    }
+}
+
+// MARK: - Large single-activity card (~251×283, 16pt corners — Figma 1252:17748)
+
+struct ActivityLargeFeaturedCard: View {
+    let activity: Activity
+    let isFavorite: Bool
+    let onToggleFavorite: () -> Void
+    var isArabic: Bool = false
+
+    private let cardWidth: CGFloat = 251
+    private let cardHeight: CGFloat = 283
+    private let imageCorner: CGFloat = 11
+    private let textGreen = Color.darkGreen
+
+    var body: some View {
+        VStack(alignment: isArabic ? .trailing : .leading, spacing: 0) {
+            ZStack(alignment: .topTrailing) {
+                RemoteImage(imageName: activity.imageName)
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: cardWidth - 15, height: 166)
+                    .clipped()
+                    .cornerRadius(imageCorner)
+                    .padding(.top, 7)
+                    .padding(.horizontal, 7.5)
+
+                Button(action: onToggleFavorite) {
+                    ZStack {
+                        Image("heart-icon").resizable().aspectRatio(contentMode: .fit).frame(width: 22, height: 22)
+                        Image("base").resizable().aspectRatio(contentMode: .fit).frame(width: 11, height: 11)
+                    }
+                }
+                .padding(.top, 10)
+                .padding(.trailing, 10)
+            }
+
+            VStack(alignment: isArabic ? .trailing : .leading, spacing: 0) {
+                Text(activity.displayTitle(isArabic: isArabic))
+                    .font(.custom("ExpoArabic-Medium", size: 24))
+                    .foregroundColor(.black)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
+                    .multilineTextAlignment(isArabic ? .trailing : .leading)
+                    .padding(.top, 8)
+
+                Text(activity.displayCategory(isArabic: isArabic))
+                    .font(.custom("ExpoArabic-Medium", size: 10))
+                    .foregroundColor(textGreen.opacity(0.58))
+                    .lineLimit(1)
+                    .multilineTextAlignment(isArabic ? .trailing : .leading)
+                    .padding(.top, 4)
+
+                HStack(spacing: 4) {
+                    if !isArabic {
+                        Image("location-icon")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 9, height: 11)
+                    }
+                    Text(activity.displayLocation(isArabic: isArabic))
+                        .font(.custom("ExpoArabic-Medium", size: 11))
+                        .foregroundColor(textGreen)
+                        .lineLimit(1)
+                    if isArabic {
+                        Image("location-icon")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 9, height: 11)
+                    }
+                }
+                .padding(.top, 6)
+            }
+            .padding(.horizontal, 11)
+            .padding(.bottom, 12)
+        }
+        .frame(width: cardWidth, height: cardHeight)
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
         .contentShape(Rectangle())
         .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
     }
