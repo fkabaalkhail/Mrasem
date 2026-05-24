@@ -114,3 +114,5 @@ OnboardingView2_backup.swift
 PASTE-INTO-SUPABASE.sql
 *.ipynb
 Mrasem/Mrasem/instructions.md
+*.excalidraw
+Diagram.excalidraw
