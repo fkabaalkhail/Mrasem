@@ -1,7 +1,11 @@
 # Mrasem مراسم
 
 <p align="center">
-  <img src="mrasem-admin-next/public/mrasem-logo-full.png" alt="Mrasem Logo" width="200"/>
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="mrasem-admin-next/public/mrasem-logo.svg"/>
+    <source media="(prefers-color-scheme: dark)" srcset="mrasem-admin-next/public/mrasem-logo-full.png"/>
+    <img src="mrasem-admin-next/public/mrasem-logo-full.png" alt="Mrasem Logo" width="200"/>
+  </picture>
 </p>
 
 A concierge-style iOS app for booking premium experiences across Saudi Arabia — restaurants, activities, seasonal events, car services, and private invitations. Built for a client as a full-stack project covering the mobile app, admin dashboard, and backend.
