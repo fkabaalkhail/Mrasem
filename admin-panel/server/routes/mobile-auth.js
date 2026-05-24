@@ -5,7 +5,7 @@ const db = require('../db');
 
 const router = express.Router();
 
-const USER_JWT_SECRET = process.env.USER_JWT_SECRET || 'mrasem-user-secret-key';
+const USER_JWT_SECRET = process.env.USER_JWT_SECRET || 'change-me';
 
 // Generate a random 6-digit OTP
 function generateOTP() {

@@ -5,7 +5,7 @@ import { createTestApp } from './test-helper.js';
 const app = createTestApp();
 
 const VALID_EMAIL = 'admin@mrasem.com';
-const VALID_PASSWORD = 'admin123';
+const VALID_PASSWORD = 'change-me';
 
 /**
  * Helper: login and return a valid JWT token.

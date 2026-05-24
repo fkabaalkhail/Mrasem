@@ -10,7 +10,7 @@ const db = require('../db');
 async function getAuthToken() {
   const res = await request(app)
     .post('/api/auth/login')
-    .send({ email: 'admin@mrasem.com', password: 'admin123' });
+    .send({ email: 'admin@mrasem.com', password: 'change-me' });
   return res.body.token;
 }
 
@@ -20,7 +20,7 @@ describe('Auth', () => {
   it('login with correct credentials returns token', async () => {
     const res = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'admin@mrasem.com', password: 'admin123' });
+      .send({ email: 'admin@mrasem.com', password: 'change-me' });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('token');

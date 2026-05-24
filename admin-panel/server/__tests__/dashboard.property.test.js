@@ -7,7 +7,7 @@ const require = createRequire(import.meta.url);
 const app = createTestApp();
 
 const VALID_EMAIL = 'admin@mrasem.com';
-const VALID_PASSWORD = 'admin123';
+const VALID_PASSWORD = 'change-me';
 
 async function getAuthToken() {
   const res = await request(app)

@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = 'mrasem-admin-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'change-me';
 
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;

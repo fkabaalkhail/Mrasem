@@ -6,7 +6,7 @@ const app = createTestApp();
 
 // The only valid credentials in the seeded database
 const VALID_EMAIL = 'admin@mrasem.com';
-const VALID_PASSWORD = 'admin123';
+const VALID_PASSWORD = 'change-me';
 
 // Feature: admin-panel, Property 1: Invalid credentials are always rejected
 // **Validates: Requirements 1.3**

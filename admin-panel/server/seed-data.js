@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 
 // Admin password hashed synchronously
-const adminPasswordHash = bcrypt.hashSync('admin123', 10);
+const adminPasswordHash = bcrypt.hashSync(process.env.ADMIN_PASSWORD || 'change-me', 10);
 
 // ─── Restaurants (34 total) ─────────────────────────────────────────────────
 const restaurants = [
